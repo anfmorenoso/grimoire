@@ -1,0 +1,32 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# JS/TS
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Editors
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Logs
+*.log

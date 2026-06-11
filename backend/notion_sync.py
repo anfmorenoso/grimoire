@@ -1,0 +1,235 @@
+"""Notion ↔ SQLite sync layer."""
+from __future__ import annotations
+import json
+import os
+from datetime import datetime, timezone
+
+import aiosqlite
+from notion_client import AsyncClient
+
+from vocabulary import (
+    GRAIN_MAP, GRAIN_REVERSE,
+    SENSATIONS_MAP, SENSATIONS_REVERSE,
+    MASSE_BASSE_MAP, MASSE_BASSE_REVERSE,
+    ROLE_SET_MAP, ROLE_SET_REVERSE,
+)
+
+
+NOTION_VOCAB_MAP = {
+    "grain": GRAIN_MAP,
+    "sensations": SENSATIONS_MAP,
+    "masse_basse": MASSE_BASSE_MAP,
+    "role_set": ROLE_SET_MAP,
+}
+
+
+def _get_client() -> AsyncClient:
+    return AsyncClient(auth=os.getenv("NOTION_TOKEN"))
+
+
+def _get_db_id() -> str:
+    return os.getenv("NOTION_DATABASE_ID", "")
+
+
+# --- Notion → our model ---
+
+def _text(prop) -> str | None:
+    parts = prop.get("rich_text", [])
+    return "".join(p["plain_text"] for p in parts) or None
+
+
+def _select(prop, reverse_map: dict) -> str | None:
+    sel = prop.get("select")
+    if not sel:
+        return None
+    return reverse_map.get(sel["name"])
+
+
+def _multi_select(prop, reverse_map: dict) -> list[str]:
+    return [
+        reverse_map[o["name"]]
+        for o in prop.get("multi_select", [])
+        if o["name"] in reverse_map
+    ]
+
+
+def notion_page_to_dict(page: dict) -> dict:
+    p = page["properties"]
+    label_prop = p.get("Label", {})
+    bpm_prop = p.get("BPM", {})
+    year_prop = p.get("Year", {})
+    grain_prop = p.get("Grain", {})
+    sensations_prop = p.get("Sensations", {})
+    masse_basse_prop = p.get("Masse Basse", {})
+    role_set_prop = p.get("Role Set", {})
+    url_prop = p.get("URL", {})
+    downloaded_prop = p.get("Downloaded", {})
+    return {
+        "notion_id": page["id"],
+        "name": "".join(t["plain_text"] for t in p["Name"]["title"]),
+        "artist": _text(p["Artist"]) or "",
+        "album": _text(p.get("Album", {"rich_text": []})),
+        "label": label_prop["select"]["name"] if label_prop.get("select") else None,
+        "year": year_prop.get("number"),
+        "bpm": bpm_prop.get("number"),
+        "key": _text(p.get("Key", {"rich_text": []})),
+        "grain": _select(grain_prop, GRAIN_REVERSE),
+        "sensations": _multi_select(sensations_prop, SENSATIONS_REVERSE),
+        "masse_basse": _select(masse_basse_prop, MASSE_BASSE_REVERSE),
+        "role_set": _select(role_set_prop, ROLE_SET_REVERSE),
+        "url": url_prop.get("url"),
+        "downloaded": downloaded_prop.get("checkbox", False),
+        "layering": _text(p.get("Layering", {"rich_text": []})),
+        "synced_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# --- our model → Notion properties ---
+
+def dict_to_notion_properties(data: dict) -> dict:
+    props = {}
+
+    if "name" in data and data["name"] is not None:
+        props["Name"] = {"title": [{"text": {"content": data["name"]}}]}
+    if "artist" in data and data["artist"] is not None:
+        props["Artist"] = {"rich_text": [{"text": {"content": data["artist"]}}]}
+    if "album" in data:
+        props["Album"] = {"rich_text": [{"text": {"content": data["album"] or ""}}]}
+    if "label" in data:
+        props["Label"] = {"select": {"name": data["label"]}} if data["label"] else {"select": None}
+    if "year" in data:
+        props["Year"] = {"number": data["year"]}
+    if "bpm" in data:
+        props["BPM"] = {"number": data["bpm"]}
+    if "key" in data:
+        props["Key"] = {"rich_text": [{"text": {"content": data["key"] or ""}}]}
+    if "grain" in data:
+        notion_val = GRAIN_MAP.get(data["grain"]) if data["grain"] else None
+        props["Grain"] = {"select": {"name": notion_val}} if notion_val else {"select": None}
+    if "sensations" in data:
+        props["Sensations"] = {
+            "multi_select": [{"name": SENSATIONS_MAP[s]} for s in (data["sensations"] or []) if s in SENSATIONS_MAP]
+        }
+    if "masse_basse" in data:
+        notion_val = MASSE_BASSE_MAP.get(data["masse_basse"]) if data["masse_basse"] else None
+        props["Masse Basse"] = {"select": {"name": notion_val}} if notion_val else {"select": None}
+    if "role_set" in data:
+        notion_val = ROLE_SET_MAP.get(data["role_set"]) if data["role_set"] else None
+        props["Role Set"] = {"select": {"name": notion_val}} if notion_val else {"select": None}
+    if "url" in data:
+        props["URL"] = {"url": data["url"]}
+    if "downloaded" in data:
+        props["Downloaded"] = {"checkbox": bool(data["downloaded"])}
+    if "layering" in data and data["layering"]:
+        props["Layering"] = {"rich_text": [{"text": {"content": data["layering"]}}]}
+
+    return props
+
+
+# --- Sync operations ---
+
+async def _fetch_notion_pages() -> list[dict]:
+    """Fetch all pages from Notion database."""
+    notion = _get_client()
+    db_id = _get_db_id()
+    pages = []
+    cursor = None
+    try:
+        while True:
+            kwargs: dict = {"database_id": db_id, "page_size": 100}
+            if cursor:
+                kwargs["start_cursor"] = cursor
+            response = await notion.databases.query(**kwargs)
+            pages.extend(response["results"])
+            if not response.get("has_more"):
+                break
+            cursor = response.get("next_cursor")
+    finally:
+        await notion.aclose()
+    return pages
+
+
+async def preview_sync(db: aiosqlite.Connection) -> dict:
+    """Compare Notion with local DB without writing. Returns {new: [...], updated: [...]}."""
+    pages = await _fetch_notion_pages()
+    new_tracks: list[dict] = []
+    updated_tracks: list[dict] = []
+
+    for page in pages:
+        try:
+            row = notion_page_to_dict(page)
+            if not row["name"]:
+                continue
+            c = await db.execute(
+                "SELECT id FROM tracks WHERE notion_id = ?", [row["notion_id"]]
+            )
+            existing = await c.fetchone()
+            entry = {"name": row["name"], "artist": row["artist"]}
+            if existing:
+                updated_tracks.append(entry)
+            else:
+                new_tracks.append(entry)
+        except Exception:
+            continue
+
+    return {"new": new_tracks, "updated": updated_tracks}
+
+
+async def sync_from_notion(db: aiosqlite.Connection):
+    """Pull all pages from Notion and upsert into local SQLite."""
+    pages = await _fetch_notion_pages()
+
+    upserted = 0
+    for page in pages:
+        try:
+            row = notion_page_to_dict(page)
+            if not row["name"]:
+                continue
+            await db.execute(
+                """
+                INSERT INTO tracks (notion_id, name, artist, album, label, year, bpm, key,
+                    grain, sensations, masse_basse, role_set, url, downloaded, layering, synced_at)
+                VALUES (:notion_id, :name, :artist, :album, :label, :year, :bpm, :key,
+                    :grain, :sensations, :masse_basse, :role_set, :url, :downloaded, :layering, :synced_at)
+                ON CONFLICT(notion_id) DO UPDATE SET
+                    name=excluded.name, artist=excluded.artist, album=excluded.album,
+                    label=excluded.label, year=excluded.year, bpm=excluded.bpm, key=excluded.key,
+                    grain=excluded.grain, sensations=excluded.sensations,
+                    masse_basse=excluded.masse_basse, role_set=excluded.role_set,
+                    url=excluded.url, downloaded=excluded.downloaded,
+                    layering=COALESCE(excluded.layering, tracks.layering),
+                    synced_at=excluded.synced_at
+                """,
+                {**row, "sensations": json.dumps(row["sensations"])},
+            )
+            upserted += 1
+        except Exception:
+            continue
+
+    await db.commit()
+    return upserted
+
+
+async def push_to_notion(data: dict) -> str:
+    """Create a new page in Notion. Returns the new page ID."""
+    notion = _get_client()
+    try:
+        page = await notion.pages.create(
+            parent={"database_id": _get_db_id()},
+            properties=dict_to_notion_properties(data),
+        )
+        return page["id"]
+    finally:
+        await notion.aclose()
+
+
+async def update_in_notion(notion_id: str, data: dict):
+    """Patch an existing Notion page."""
+    notion = _get_client()
+    try:
+        await notion.pages.update(
+            page_id=notion_id,
+            properties=dict_to_notion_properties(data),
+        )
+    finally:
+        await notion.aclose()
