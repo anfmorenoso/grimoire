@@ -1,3 +1,13 @@
+---
+title: Grimoire DJ
+emoji: 🎛️
+colorFrom: purple
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Grimoire DJ
 
 Self-hosted PWA to manage and analyze your DJ music library. Local SQLite cache synced to Notion, with Spotify metadata lookup and AI-powered tag suggestions via Gemini.

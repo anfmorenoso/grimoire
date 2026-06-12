@@ -1,11 +1,14 @@
 import json
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import List, Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 load_dotenv(dotenv_path="../.env")
 
@@ -17,9 +20,21 @@ from vocabulary import FULL_WIKI
 from llm import suggest_tags
 
 
+DIST_DIR = Path(__file__).parent / "dist"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    # Auto-sync from Notion on startup so the DB is populated after cold starts
+    if os.environ.get("NOTION_TOKEN") and os.environ.get("NOTION_DATABASE_ID"):
+        db = await get_db()
+        try:
+            await sync_from_notion(db)
+        except Exception:
+            pass  # don't block startup if Notion is unreachable
+        finally:
+            await db.close()
     yield
 
 
@@ -248,3 +263,16 @@ async def suggest(body: SuggestRequest):
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM error: {str(e)}")
+
+
+# --- SPA static file serving (must be last) ---
+
+if DIST_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=DIST_DIR / "assets"), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        file = DIST_DIR / full_path
+        if file.is_file():
+            return FileResponse(file)
+        return FileResponse(DIST_DIR / "index.html")
