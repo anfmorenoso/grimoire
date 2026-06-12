@@ -1,5 +1,4 @@
 #!/bin/bash
-# Kill processes on backend (8000) and frontend (5173) ports, then restart both.
 set -e
 
 GRIMOIRE="$(cd "$(dirname "$0")" && pwd)"
@@ -17,10 +16,10 @@ kill_port() {
 }
 
 echo "=== Stopping servers ==="
+kill_port 7860
 kill_port 8000
 kill_port 5173
 
-# Small pause to let sockets release
 sleep 0.5
 
 echo ""
@@ -41,6 +40,5 @@ echo "Frontend PID: $FRONTEND_PID"
 echo ""
 echo "Press Ctrl+C to stop both servers."
 
-# Forward Ctrl+C to both children
 trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit 0" INT TERM
 wait
