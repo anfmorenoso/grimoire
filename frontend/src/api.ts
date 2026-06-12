@@ -3,7 +3,7 @@ import type { Wiki } from "./vocabulary";
 import type { SortField, SortDir } from "./filters";
 
 const api = axios.create({
-  baseURL: `http://${window.location.hostname}:8000`,
+  baseURL: (import.meta.env.VITE_API_URL as string | undefined) ?? "",
   paramsSerializer: (params: Record<string, unknown>) => {
     const parts: string[] = [];
     for (const [key, val] of Object.entries(params)) {
