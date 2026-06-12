@@ -1,8 +1,9 @@
 import json
+import os
 from pathlib import Path
 import aiosqlite
 
-DB_PATH = Path(__file__).parent / "grimoire.db"
+DB_PATH = Path(os.environ.get("DB_PATH", str(Path(__file__).parent / "grimoire.db")))
 
 CREATE_TRACKS_TABLE = """
 CREATE TABLE IF NOT EXISTS tracks (
