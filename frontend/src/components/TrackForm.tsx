@@ -204,7 +204,7 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Prop
           </label>
           <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
             <input type="checkbox" checked={form.hq_download || false} onChange={(e) => set("hq_download", e.target.checked)} className="accent-accent" />
-            ✅✅ HQ
+            HQ
           </label>
         </div>
       </div>
