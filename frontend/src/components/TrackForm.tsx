@@ -278,7 +278,7 @@ export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, on
       )}
 
       {/* AI button — bottom: compare when user has tagged manually on a new song, or re-analyse after AI */}
-      {(aiState === "done" || (mode === "add" && hasUserTags(form))) && (
+      {mode === "add" && (aiState === "done" || hasUserTags(form)) && (
         <button
           type="button"
           onClick={handleAiSuggest}

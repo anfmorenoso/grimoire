@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS tracks (
     downloaded  INTEGER DEFAULT 0,
     notes       TEXT,
     layering    TEXT,
-    synced_at   TEXT
+    synced_at   TEXT,
+    created_at  INTEGER DEFAULT (unixepoch())
 )
 """
 
@@ -41,6 +42,7 @@ async def init_db():
         for col_sql in [
             "ALTER TABLE tracks ADD COLUMN layering TEXT",
             "ALTER TABLE tracks ADD COLUMN year INTEGER",
+            "ALTER TABLE tracks ADD COLUMN created_at INTEGER DEFAULT (unixepoch())",
         ]:
             try:
                 await db.execute(col_sql)
