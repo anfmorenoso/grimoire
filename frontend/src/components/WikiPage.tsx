@@ -61,7 +61,7 @@ export default function WikiPage({ wiki, onBack }: Props) {
                   className="bg-card border border-border rounded-xl px-4 py-3 space-y-1"
                 >
                   <p className={`text-sm font-semibold leading-snug ${entryTitleColor(cat, entry.key)}`}>
-                    {long ? (entry.notion_value || entry.label) : entry.label}
+                    {long ? `${entry.label.split(" ")[0]} ${entry.notion_value || entry.label}` : entry.label}
                   </p>
                   <p className="text-xs text-gray-400 leading-relaxed">
                     {entry.description}

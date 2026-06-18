@@ -1,0 +1,2 @@
+#!/bin/sh
+chmod +x "$(git rev-parse --show-toplevel)"/*.sh 2>/dev/null || true

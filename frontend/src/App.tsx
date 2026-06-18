@@ -136,7 +136,6 @@ export default function App() {
 
   const handleDelete = async () => {
     if (!selected) return;
-    if (!confirm(`Supprimer "${selected.name}" ?`)) return;
     await deleteTrack(selected.id);
     await loadTracks();
     setView("list");
@@ -182,18 +181,16 @@ export default function App() {
           <h1 className="text-base font-semibold flex-1">
             {view === "edit" ? "Modifier" : "Nouveau morceau"}
           </h1>
-          {view === "edit" && (
-            <button type="button" onClick={handleDelete} className="text-red-400 text-sm">
-              Supprimer
-            </button>
-          )}
         </header>
         <div className="flex-1 overflow-y-auto px-4 pt-4">
           <TrackForm
             wiki={wiki}
             initial={selected || {}}
+            mode={view === "edit" ? "edit" : "add"}
             onSave={handleSave}
             onCancel={() => { setView("list"); setSelected(null); }}
+            onDelete={view === "edit" ? handleDelete : undefined}
+            onOpenTrack={view === "add" ? handleEdit : undefined}
           />
         </div>
       </div>

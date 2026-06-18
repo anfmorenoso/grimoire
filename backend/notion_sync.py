@@ -64,6 +64,7 @@ def notion_page_to_dict(page: dict) -> dict:
     role_set_prop = p.get("Role Set", {})
     url_prop = p.get("URL", {})
     downloaded_prop = p.get("Downloaded", {})
+    hq_prop = p.get("HQ", {})
     return {
         "notion_id": page["id"],
         "name": "".join(t["plain_text"] for t in p["Name"]["title"]),
@@ -79,6 +80,7 @@ def notion_page_to_dict(page: dict) -> dict:
         "role_set": _select(role_set_prop, ROLE_SET_REVERSE),
         "url": url_prop.get("url"),
         "downloaded": downloaded_prop.get("checkbox", False),
+        "hq_download": hq_prop.get("checkbox", False),
         "layering": _text(p.get("Layering", {"rich_text": []})),
         "synced_at": datetime.now(timezone.utc).isoformat(),
         "notion_updated_at": page.get("last_edited_time"),
@@ -121,6 +123,8 @@ def dict_to_notion_properties(data: dict) -> dict:
         props["URL"] = {"url": data["url"]}
     if "downloaded" in data:
         props["Downloaded"] = {"checkbox": bool(data["downloaded"])}
+    if "hq_download" in data:
+        props["HQ"] = {"checkbox": bool(data["hq_download"])}
     if "layering" in data and data["layering"]:
         props["Layering"] = {"rich_text": [{"text": {"content": data["layering"]}}]}
 
@@ -151,7 +155,7 @@ async def _fetch_notion_pages() -> list[dict]:
 
 
 async def preview_sync(db: aiosqlite.Connection) -> dict:
-    """Compare Notion with local DB without writing. Returns {new: [...], updated: [...]}."""
+    """Compare Notion with local DB without writing. Returns {new, updated}."""
     pages = await _fetch_notion_pages()
     new_tracks: list[dict] = []
     updated_tracks: list[dict] = []
@@ -176,6 +180,15 @@ async def preview_sync(db: aiosqlite.Connection) -> dict:
     return {"new": new_tracks, "updated": updated_tracks}
 
 
+async def archive_in_notion(notion_id: str):
+    """Soft-delete a Notion page (archived=True). Reversible from Notion UI."""
+    notion = _get_client()
+    try:
+        await notion.pages.update(page_id=notion_id, archived=True)
+    finally:
+        await notion.aclose()
+
+
 async def sync_from_notion(db: aiosqlite.Connection):
     """Pull all pages from Notion and upsert into local SQLite."""
     pages = await _fetch_notion_pages()
@@ -189,15 +202,15 @@ async def sync_from_notion(db: aiosqlite.Connection):
             await db.execute(
                 """
                 INSERT INTO tracks (notion_id, name, artist, album, label, year, bpm, key,
-                    grain, sensations, masse_basse, role_set, url, downloaded, layering, synced_at, notion_updated_at)
+                    grain, sensations, masse_basse, role_set, url, downloaded, hq_download, layering, synced_at, notion_updated_at)
                 VALUES (:notion_id, :name, :artist, :album, :label, :year, :bpm, :key,
-                    :grain, :sensations, :masse_basse, :role_set, :url, :downloaded, :layering, :synced_at, :notion_updated_at)
+                    :grain, :sensations, :masse_basse, :role_set, :url, :downloaded, :hq_download, :layering, :synced_at, :notion_updated_at)
                 ON CONFLICT(notion_id) DO UPDATE SET
                     name=excluded.name, artist=excluded.artist, album=excluded.album,
                     label=excluded.label, year=excluded.year, bpm=excluded.bpm, key=excluded.key,
                     grain=excluded.grain, sensations=excluded.sensations,
                     masse_basse=excluded.masse_basse, role_set=excluded.role_set,
-                    url=excluded.url, downloaded=excluded.downloaded,
+                    url=excluded.url, downloaded=excluded.downloaded, hq_download=excluded.hq_download,
                     layering=COALESCE(excluded.layering, tracks.layering),
                     synced_at=excluded.synced_at,
                     notion_updated_at=excluded.notion_updated_at
