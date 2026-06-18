@@ -21,6 +21,7 @@ class TrackBase(BaseModel):
     role_set: Optional[RoleSetKey] = None
     url: Optional[str] = None
     downloaded: bool = False
+    hq_download: bool = False
     notes: Optional[str] = None
     layering: Optional[str] = None
 
@@ -43,6 +44,7 @@ class TrackUpdate(BaseModel):
     role_set: Optional[RoleSetKey] = None
     url: Optional[str] = None
     downloaded: Optional[bool] = None
+    hq_download: Optional[bool] = None
     notes: Optional[str] = None
     layering: Optional[str] = None
 
