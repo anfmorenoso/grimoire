@@ -8,7 +8,7 @@ app_port: 7860
 pinned: false
 ---
 
-# Grimoire DJ
+# Grimoire DJ — Digg IT
 
 Mobile-first PWA to manage and analyze a DJ music library. SQLite local cache synced bidirectionally with Notion. Spotify metadata lookup and AI-powered tag suggestions via Gemini. Deployed to Hugging Face Spaces as a Docker container.
 
