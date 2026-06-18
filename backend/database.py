@@ -42,7 +42,7 @@ async def init_db():
         for col_sql in [
             "ALTER TABLE tracks ADD COLUMN layering TEXT",
             "ALTER TABLE tracks ADD COLUMN year INTEGER",
-            "ALTER TABLE tracks ADD COLUMN created_at INTEGER DEFAULT (unixepoch())",
+            "ALTER TABLE tracks ADD COLUMN created_at INTEGER",
         ]:
             try:
                 await db.execute(col_sql)
