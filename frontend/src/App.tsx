@@ -192,8 +192,10 @@ export default function App() {
           <TrackForm
             wiki={wiki}
             initial={selected || {}}
+            mode={view === "edit" ? "edit" : "add"}
             onSave={handleSave}
             onCancel={() => { setView("list"); setSelected(null); }}
+            onOpenTrack={view === "add" ? handleEdit : undefined}
           />
         </div>
       </div>
