@@ -5,6 +5,7 @@ import { lookupSpotify, suggestTags, getTracks } from "../api";
 import TagGroup from "./TagGroup";
 
 interface Props {
+
   wiki: Wiki;
   initial?: Partial<Track>;
   mode?: "add" | "edit";
@@ -157,13 +158,6 @@ export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, on
 
   const input = "w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-muted focus:outline-none focus:border-accent";
 
-  const aiButtonLabel = () => {
-    if (aiState === "loading") return "Analyse...";
-    if (compareMode && aiState === "done") return "✨ Ré-analyser";
-    if (hasUserTags(form)) return "✨ Comparer avec IA";
-    return "✨ Analyser avec IA";
-  };
-
   return (
     <div className="flex flex-col gap-5 pb-8">
 
@@ -278,20 +272,15 @@ export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, on
         </div>
       </div>
 
-      {/* AI button */}
+      {/* AI button — top: analyse */}
       <button
         type="button"
         onClick={handleAiSuggest}
         disabled={aiState === "loading"}
         className="w-full py-2.5 rounded-lg border border-accent/40 text-accent text-sm font-medium disabled:opacity-40 hover:bg-accent/10 transition-colors"
       >
-        {aiButtonLabel()}
+        {aiState === "loading" ? "Analyse..." : "✨ Analyser avec IA"}
       </button>
-
-      {/* AI overall summary */}
-      {aiState === "done" && aiSuggestion?.reasoning && (
-        <p className="text-xs text-accent/70 italic leading-relaxed px-1">{aiSuggestion.reasoning}</p>
-      )}
 
       {/* Tags — each followed by its AI reasoning */}
       <div className="flex items-center justify-between">
@@ -357,6 +346,13 @@ export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, on
       {aiState === "done" && aiSuggestion?.role_set_reasoning && (
         <AiNote>{aiSuggestion.role_set_reasoning}</AiNote>
       )}
+
+      {/* AI overall summary */}
+      {aiState === "done" && aiSuggestion?.reasoning && (
+        <p className="text-xs text-accent/70 italic leading-relaxed px-1">{aiSuggestion.reasoning}</p>
+      )}
+
+
 
       {/* Layering — editable, auto-filled by AI */}
       <div className="space-y-2">
