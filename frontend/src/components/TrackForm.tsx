@@ -276,14 +276,15 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Prop
         <p className="text-xs text-accent/70 italic leading-relaxed px-1">{aiSuggestion.reasoning}</p>
       )}
 
-      {/* AI button — bottom: compare / re-analyse (only after first analysis) */}
-      {aiState === "done" && (
+      {/* AI button — bottom: compare when user has tagged manually on a new song, or re-analyse after AI */}
+      {(aiState === "done" || (mode === "add" && hasUserTags(form))) && (
         <button
           type="button"
           onClick={handleAiSuggest}
-          className="w-full py-2.5 rounded-lg border border-accent/40 text-accent text-sm font-medium hover:bg-accent/10 transition-colors"
+          disabled={aiState === "loading"}
+          className="w-full py-2.5 rounded-lg border border-accent/40 text-accent text-sm font-medium disabled:opacity-40 hover:bg-accent/10 transition-colors"
         >
-          {compareMode ? "✨ Ré-analyser" : "✨ Comparer avec IA"}
+          {aiState === "loading" ? "Analyse..." : compareMode ? "✨ Ré-analyser" : "✨ Comparer avec IA"}
         </button>
       )}
 
