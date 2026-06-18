@@ -329,7 +329,9 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel, onDele
           <div className="w-full max-w-sm bg-surface border border-border rounded-xl p-5 space-y-4">
             <p className="text-sm font-semibold text-white">Supprimer "{form.name}" ?</p>
             <p className="text-xs text-gray-400 leading-relaxed">
-              Le morceau sera retiré de Grimoire. Il restera dans Notion jusqu'au prochain sync.
+              {form.notion_id
+                ? "Le morceau sera supprimé de Grimoire et archivé dans Notion."
+                : "Le morceau sera supprimé de Grimoire."}
             </p>
             <div className="flex gap-2 pt-1">
               <button type="button" onClick={() => setConfirmDelete(false)}

@@ -77,22 +77,8 @@ async def sync_preview():
 async def sync():
     db = await get_db()
     try:
-        # Detect orphans before pulling (tracks deleted locally but still in Notion)
-        preview = await preview_sync(db)
-        orphan_notion_ids = [t["notion_id"] for t in preview.get("to_delete", [])]
-
         count = await sync_from_notion(db)
-
-        # Archive orphaned Notion pages
-        archived = 0
-        for notion_id in orphan_notion_ids:
-            try:
-                await archive_in_notion(notion_id)
-                archived += 1
-            except Exception:
-                pass
-
-        return {"synced": count, "archived": archived}
+        return {"synced": count}
     finally:
         await db.close()
 
@@ -240,8 +226,18 @@ async def update_track(track_id: int, body: TrackUpdate):
 async def delete_track(track_id: int):
     db = await get_db()
     try:
+        c = await db.execute("SELECT notion_id FROM tracks WHERE id = ?", [track_id])
+        row = await c.fetchone()
+        notion_id = row["notion_id"] if row else None
+
         await db.execute("DELETE FROM tracks WHERE id = ?", [track_id])
         await db.commit()
+
+        if notion_id:
+            try:
+                await archive_in_notion(notion_id)
+            except Exception:
+                pass
     finally:
         await db.close()
 

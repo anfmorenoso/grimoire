@@ -204,7 +204,7 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 pb-6">
           <div className="w-full max-w-md bg-surface border border-border rounded-xl p-5 space-y-4">
             <h2 className="text-sm font-semibold text-white">Sync Notion — aperçu</h2>
-            {preview.new.length === 0 && preview.updated.length === 0 && (preview.to_delete?.length ?? 0) === 0 ? (
+            {preview.new.length === 0 && preview.updated.length === 0 ? (
               <p className="text-sm text-muted">Aucun changement détecté.</p>
             ) : (
               <>
@@ -229,20 +229,6 @@ export default function App() {
                       {preview.updated.map((t, i) => (
                         <li key={i} className="text-xs text-gray-500 truncate">
                           {t.name} <span className="text-muted">— {t.artist}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {preview.to_delete?.length > 0 && (
-                  <div>
-                    <p className="text-xs text-red-400 font-medium mb-1">
-                      {preview.to_delete.length} à archiver dans Notion
-                    </p>
-                    <ul className="space-y-0.5 max-h-24 overflow-y-auto">
-                      {preview.to_delete.map((t, i) => (
-                        <li key={i} className="text-xs text-red-400/70 truncate">
-                          {t.name} <span className="text-red-400/40">— {t.artist}</span>
                         </li>
                       ))}
                     </ul>

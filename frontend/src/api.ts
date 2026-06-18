@@ -53,7 +53,6 @@ export interface SpotifyMeta {
 export interface SyncPreview {
   new: Array<{ name: string; artist: string }>;
   updated: Array<{ name: string; artist: string }>;
-  to_delete: Array<{ name: string; artist: string; notion_id: string }>;
 }
 
 export interface TrackFilter {
