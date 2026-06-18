@@ -72,7 +72,9 @@ export default function TrackCard({ track, wiki, onClick, onTagClick }: Props) {
             )
           )}
           {track.bpm && <span className="text-xs text-muted">{track.bpm} BPM</span>}
-          {track.downloaded && <span className="text-xs text-green-500">✓</span>}
+          {track.downloaded && (
+            <span className="text-xs text-green-500">{track.hq_download ? "✅✅" : "✓"}</span>
+          )}
         </div>
       </div>
 

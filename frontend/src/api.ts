@@ -34,6 +34,7 @@ export interface Track {
   role_set?: string;
   url?: string;
   downloaded: boolean;
+  hq_download: boolean;
   notes?: string;
   layering?: string;
 }

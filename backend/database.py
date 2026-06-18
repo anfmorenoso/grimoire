@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS tracks (
     role_set    TEXT,
     url         TEXT,
     downloaded  INTEGER DEFAULT 0,
+    hq_download INTEGER DEFAULT 0,
     notes       TEXT,
     layering    TEXT,
     synced_at   TEXT
@@ -41,6 +42,7 @@ async def init_db():
         for col_sql in [
             "ALTER TABLE tracks ADD COLUMN layering TEXT",
             "ALTER TABLE tracks ADD COLUMN year INTEGER",
+            "ALTER TABLE tracks ADD COLUMN hq_download INTEGER DEFAULT 0",
         ]:
             try:
                 await db.execute(col_sql)
@@ -54,4 +56,5 @@ def row_to_dict(row: aiosqlite.Row) -> dict:
     if d.get("sensations"):
         d["sensations"] = json.loads(d["sensations"])
     d["downloaded"] = bool(d.get("downloaded", 0))
+    d["hq_download"] = bool(d.get("hq_download", 0))
     return d
