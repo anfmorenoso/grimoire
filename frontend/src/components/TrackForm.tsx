@@ -31,7 +31,7 @@ export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, on
   const [form, setForm] = useState<Partial<Track>>({
     name: "", artist: "", album: "", label: "", year: undefined, bpm: undefined,
     key: "", grain: "", sensations: [], masse_basse: "", role_set: "",
-    url: "", downloaded: false, notes: "", layering: "",
+    url: "", downloaded: false, hq_download: false, notes: "", layering: "",
     ...initial,
   });
 
@@ -257,10 +257,16 @@ export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, on
           </div>
         )}
         <input className={input} placeholder="URL" value={form.url || ""} onChange={(e) => set("url", e.target.value)} />
-        <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
-          <input type="checkbox" checked={form.downloaded || false} onChange={(e) => set("downloaded", e.target.checked)} className="accent-accent" />
-          Téléchargé
-        </label>
+        <div className="flex gap-4">
+          <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+            <input type="checkbox" checked={form.downloaded || false} onChange={(e) => set("downloaded", e.target.checked)} className="accent-accent" />
+            Téléchargé
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+            <input type="checkbox" checked={form.hq_download || false} onChange={(e) => set("hq_download", e.target.checked)} className="accent-accent" />
+            HQ
+          </label>
+        </div>
       </div>
 
       {/* AI button */}
