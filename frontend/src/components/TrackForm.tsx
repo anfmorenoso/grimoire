@@ -5,6 +5,7 @@ import { lookupSpotify, suggestTags } from "../api";
 import TagGroup from "./TagGroup";
 
 interface Props {
+  mode?: "add" | "edit";
   wiki: Wiki;
   initial?: Partial<Track>;
   onSave: (data: Partial<Track>) => Promise<void>;
@@ -25,7 +26,7 @@ function hasUserTags(form: Partial<Track>): boolean {
   return !!(form.grain || (form.sensations?.length ?? 0) > 0 || form.masse_basse || form.role_set);
 }
 
-export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Props) {
+export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, onCancel }: Props) {
   const [form, setForm] = useState<Partial<Track>>({
     name: "", artist: "", album: "", label: "", year: undefined, bpm: undefined,
     key: "", grain: "", sensations: [], masse_basse: "", role_set: "",
