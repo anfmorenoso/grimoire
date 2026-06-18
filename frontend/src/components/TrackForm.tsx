@@ -9,6 +9,7 @@ interface Props {
   initial?: Partial<Track>;
   onSave: (data: Partial<Track>) => Promise<void>;
   onCancel: () => void;
+  onDelete?: () => Promise<void>;
 }
 
 type AiState = "idle" | "loading" | "done";
@@ -25,7 +26,7 @@ function hasUserTags(form: Partial<Track>): boolean {
   return !!(form.grain || (form.sensations?.length ?? 0) > 0 || form.masse_basse || form.role_set);
 }
 
-export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Props) {
+export default function TrackForm({ wiki, initial = {}, onSave, onCancel, onDelete }: Props) {
   const [form, setForm] = useState<Partial<Track>>({
     name: "", artist: "", album: "", label: "", year: undefined, bpm: undefined,
     key: "", grain: "", sensations: [], masse_basse: "", role_set: "",
@@ -40,6 +41,8 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Prop
   const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [longNames, setLongNames] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const set = (field: keyof Track, value: unknown) =>
     setForm((f) => ({ ...f, [field]: value }));
@@ -124,6 +127,12 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Prop
     if (!form.name || !form.artist) { alert("Titre et artiste obligatoires."); return; }
     setSaving(true);
     try { await onSave(form); } finally { setSaving(false); }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!onDelete) return;
+    setDeleting(true);
+    try { await onDelete(); } finally { setDeleting(false); setConfirmDelete(false); }
   };
 
   const input = "w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-muted focus:outline-none focus:border-accent";
@@ -314,8 +323,36 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Prop
           value={form.notes || ""} onChange={(e) => set("notes", e.target.value)} />
       </div>
 
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6">
+          <div className="w-full max-w-sm bg-surface border border-border rounded-xl p-5 space-y-4">
+            <p className="text-sm font-semibold text-white">Supprimer "{form.name}" ?</p>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Le morceau sera retiré de Grimoire. Il restera dans Notion jusqu'au prochain sync.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setConfirmDelete(false)}
+                className="flex-1 text-xs py-2 rounded-lg border border-border text-muted">
+                Annuler
+              </button>
+              <button type="button" onClick={handleDeleteConfirm} disabled={deleting}
+                className="flex-1 text-xs py-2 rounded-lg bg-red-600 text-white font-medium disabled:opacity-40">
+                {deleting ? "Suppression..." : "Supprimer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex gap-3">
+        {onDelete && (
+          <button type="button" onClick={() => setConfirmDelete(true)}
+            className="py-3 px-4 rounded-lg border border-red-800 text-red-400 text-sm font-medium">
+            🗑
+          </button>
+        )}
         <button type="button" onClick={onCancel}
           className="flex-1 py-3 rounded-lg border border-border text-gray-400 text-sm font-medium">
           Annuler

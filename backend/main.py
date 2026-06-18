@@ -14,7 +14,7 @@ load_dotenv(dotenv_path="../.env")
 
 from database import init_db, get_db, row_to_dict
 from models import TrackCreate, TrackUpdate, SpotifyLookupRequest
-from notion_sync import sync_from_notion, push_to_notion, update_in_notion, preview_sync
+from notion_sync import sync_from_notion, push_to_notion, update_in_notion, preview_sync, archive_in_notion
 from spotify import lookup_spotify_track
 from vocabulary import FULL_WIKI
 from llm import suggest_tags
@@ -77,8 +77,22 @@ async def sync_preview():
 async def sync():
     db = await get_db()
     try:
+        # Detect orphans before pulling (tracks deleted locally but still in Notion)
+        preview = await preview_sync(db)
+        orphan_notion_ids = [t["notion_id"] for t in preview.get("to_delete", [])]
+
         count = await sync_from_notion(db)
-        return {"synced": count}
+
+        # Archive orphaned Notion pages
+        archived = 0
+        for notion_id in orphan_notion_ids:
+            try:
+                await archive_in_notion(notion_id)
+                archived += 1
+            except Exception:
+                pass
+
+        return {"synced": count, "archived": archived}
     finally:
         await db.close()
 

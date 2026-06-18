@@ -150,16 +150,18 @@ async def _fetch_notion_pages() -> list[dict]:
 
 
 async def preview_sync(db: aiosqlite.Connection) -> dict:
-    """Compare Notion with local DB without writing. Returns {new: [...], updated: [...]}."""
+    """Compare Notion with local DB without writing. Returns {new, updated, to_delete}."""
     pages = await _fetch_notion_pages()
     new_tracks: list[dict] = []
     updated_tracks: list[dict] = []
+    notion_ids_in_notion: set[str] = set()
 
     for page in pages:
         try:
             row = notion_page_to_dict(page)
             if not row["name"]:
                 continue
+            notion_ids_in_notion.add(row["notion_id"])
             c = await db.execute(
                 "SELECT id FROM tracks WHERE notion_id = ?", [row["notion_id"]]
             )
@@ -172,7 +174,34 @@ async def preview_sync(db: aiosqlite.Connection) -> dict:
         except Exception:
             continue
 
-    return {"new": new_tracks, "updated": updated_tracks}
+    # Tracks deleted locally but still in Notion
+    c = await db.execute("SELECT notion_id, name, artist FROM tracks WHERE notion_id IS NOT NULL")
+    local_rows = await c.fetchall()
+    local_notion_ids = {r[0] for r in local_rows}
+    orphan_ids = notion_ids_in_notion - local_notion_ids
+
+    # Build name/artist from Notion pages for display
+    page_map = {}
+    for page in pages:
+        try:
+            row = notion_page_to_dict(page)
+            if row["notion_id"]:
+                page_map[row["notion_id"]] = {"name": row["name"], "artist": row["artist"], "notion_id": row["notion_id"]}
+        except Exception:
+            continue
+
+    to_delete = [page_map[nid] for nid in orphan_ids if nid in page_map]
+
+    return {"new": new_tracks, "updated": updated_tracks, "to_delete": to_delete}
+
+
+async def archive_in_notion(notion_id: str):
+    """Soft-delete a Notion page (archived=True). Reversible from Notion UI."""
+    notion = _get_client()
+    try:
+        await notion.pages.update(page_id=notion_id, archived=True)
+    finally:
+        await notion.aclose()
 
 
 async def sync_from_notion(db: aiosqlite.Connection):
