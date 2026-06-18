@@ -52,7 +52,7 @@ export default function TagGroup({ title, entries, selected, aiSuggested, multi,
                   }
                 `}
               >
-                {long ? (e.notion_value || e.label) : e.label}
+                {long ? `${e.label.split(" ")[0]} ${e.notion_value || e.label}` : e.label}
                 {ai && !sel && (
                   <span className="absolute top-1 right-1.5 text-[9px] text-accent/70 font-bold">IA</span>
                 )}
