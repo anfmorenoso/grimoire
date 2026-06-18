@@ -169,14 +169,14 @@ async def create_track(body: TrackCreate):
     try:
         cursor = await db.execute(
             """INSERT INTO tracks (notion_id, name, artist, album, label, year, bpm, key,
-               grain, sensations, masse_basse, role_set, url, downloaded, notes, layering)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               grain, sensations, masse_basse, role_set, url, downloaded, hq_download, notes, layering)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 notion_id, data["name"], data["artist"], data["album"],
                 data["label"], data.get("year"), data["bpm"], data["key"], data["grain"],
                 json.dumps(data["sensations"]), data["masse_basse"],
-                data["role_set"], data["url"], int(data["downloaded"]), data["notes"],
-                data.get("layering"),
+                data["role_set"], data["url"], int(data["downloaded"]),
+                int(data.get("hq_download", False)), data["notes"], data.get("layering"),
             ),
         )
         await db.commit()

@@ -1,4 +1,5 @@
 import type { VocabEntry } from "../vocabulary";
+import Tooltip from "./Tooltip";
 
 interface Props {
   title: string;
@@ -36,27 +37,27 @@ export default function TagGroup({ title, entries, selected, aiSuggested, multi,
           const sel = isSelected(e.key);
           const ai = isAiSuggested(e.key);
           return (
-            <button
-              key={e.key}
-              type="button"
-              onClick={() => toggle(e.key)}
-              title={e.description}
-              className={`
-                px-3 py-2 rounded-lg text-sm font-medium transition-all text-left
-                border leading-tight min-h-[40px] relative
-                ${sel
-                  ? "bg-accent text-white border-accent"
-                  : ai
-                    ? "bg-accent/10 text-accent border-accent/50"
-                    : "bg-card text-gray-300 border-border hover:border-accent/50"
-                }
-              `}
-            >
-              {long ? (e.notion_value || e.label) : e.label}
-              {ai && !sel && (
-                <span className="absolute top-1 right-1.5 text-[9px] text-accent/70 font-bold">IA</span>
-              )}
-            </button>
+            <Tooltip key={e.key} content={e.description}>
+              <button
+                type="button"
+                onClick={() => toggle(e.key)}
+                className={`
+                  px-3 py-2 rounded-lg text-sm font-medium transition-all text-left
+                  border leading-tight min-h-[40px] relative w-full
+                  ${sel
+                    ? "bg-accent text-white border-accent"
+                    : ai
+                      ? "bg-accent/10 text-accent border-accent/50"
+                      : "bg-card text-gray-300 border-border hover:border-accent/50"
+                  }
+                `}
+              >
+                {long ? `${e.label.split(" ")[0]} ${e.notion_value || e.label}` : e.label}
+                {ai && !sel && (
+                  <span className="absolute top-1 right-1.5 text-[9px] text-accent/70 font-bold">IA</span>
+                )}
+              </button>
+            </Tooltip>
           );
         })}
       </div>
