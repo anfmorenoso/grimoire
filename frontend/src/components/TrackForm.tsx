@@ -128,13 +128,6 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Prop
 
   const input = "w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-muted focus:outline-none focus:border-accent";
 
-  const aiButtonLabel = () => {
-    if (aiState === "loading") return "Analyse...";
-    if (compareMode && aiState === "done") return "✨ Ré-analyser";
-    if (hasUserTags(form)) return "✨ Comparer avec IA";
-    return "✨ Analyser avec IA";
-  };
-
   return (
     <div className="flex flex-col gap-5 pb-8">
 
