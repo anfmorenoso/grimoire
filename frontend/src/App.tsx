@@ -184,6 +184,7 @@ export default function App() {
         </header>
         <div className="flex-1 overflow-y-auto px-4 pt-4">
           <TrackForm
+            key={selected?.id ?? "new"}
             wiki={wiki}
             initial={selected || {}}
             mode={view === "edit" ? "edit" : "add"}
