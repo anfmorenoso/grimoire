@@ -14,7 +14,7 @@ load_dotenv(dotenv_path="../.env")
 
 from database import init_db, get_db, row_to_dict
 from models import TrackCreate, TrackUpdate, SpotifyLookupRequest
-from notion_sync import sync_from_notion, push_to_notion, update_in_notion, preview_sync
+from notion_sync import sync_from_notion, push_to_notion, update_in_notion, preview_sync, archive_in_notion
 from spotify import lookup_spotify_track
 from vocabulary import FULL_WIKI
 from llm import suggest_tags
@@ -136,7 +136,7 @@ async def list_tracks(
             params.extend([f"%{q}%", f"%{q}%", f"%{q}%"])
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        sort_expr = {"id": "id", "name": "name COLLATE NOCASE", "artist": "artist COLLATE NOCASE"}.get(sort, "id")
+        sort_expr = {"id": "notion_updated_at", "name": "name COLLATE NOCASE", "artist": "artist COLLATE NOCASE"}.get(sort, "notion_updated_at")
         sort_dir = "ASC" if dir.lower() == "asc" else "DESC"
         cursor = await db.execute(
             f"SELECT * FROM tracks {where} ORDER BY {sort_expr} {sort_dir}", params
@@ -169,14 +169,14 @@ async def create_track(body: TrackCreate):
     try:
         cursor = await db.execute(
             """INSERT INTO tracks (notion_id, name, artist, album, label, year, bpm, key,
-               grain, sensations, masse_basse, role_set, url, downloaded, notes, layering)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               grain, sensations, masse_basse, role_set, url, downloaded, hq_download, notes, layering)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 notion_id, data["name"], data["artist"], data["album"],
                 data["label"], data.get("year"), data["bpm"], data["key"], data["grain"],
                 json.dumps(data["sensations"]), data["masse_basse"],
-                data["role_set"], data["url"], int(data["downloaded"]), data["notes"],
-                data.get("layering"),
+                data["role_set"], data["url"], int(data["downloaded"]),
+                int(data.get("hq_download", False)), data["notes"], data.get("layering"),
             ),
         )
         await db.commit()
@@ -226,8 +226,18 @@ async def update_track(track_id: int, body: TrackUpdate):
 async def delete_track(track_id: int):
     db = await get_db()
     try:
+        c = await db.execute("SELECT notion_id FROM tracks WHERE id = ?", [track_id])
+        row = await c.fetchone()
+        notion_id = row["notion_id"] if row else None
+
         await db.execute("DELETE FROM tracks WHERE id = ?", [track_id])
         await db.commit()
+
+        if notion_id:
+            try:
+                await archive_in_notion(notion_id)
+            except Exception:
+                pass
     finally:
         await db.close()
 
