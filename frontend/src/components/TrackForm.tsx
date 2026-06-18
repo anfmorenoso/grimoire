@@ -1,14 +1,16 @@
 import { useState } from "react";
 import type { Wiki } from "../vocabulary";
 import type { Track, SpotifyMeta, AiSuggestion } from "../api";
-import { lookupSpotify, suggestTags } from "../api";
+import { lookupSpotify, suggestTags, getTracks } from "../api";
 import TagGroup from "./TagGroup";
 
 interface Props {
   wiki: Wiki;
   initial?: Partial<Track>;
+  mode?: "add" | "edit";
   onSave: (data: Partial<Track>) => Promise<void>;
   onCancel: () => void;
+  onOpenTrack?: (track: Track) => void;
 }
 
 type AiState = "idle" | "loading" | "done";
@@ -25,7 +27,7 @@ function hasUserTags(form: Partial<Track>): boolean {
   return !!(form.grain || (form.sensations?.length ?? 0) > 0 || form.masse_basse || form.role_set);
 }
 
-export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Props) {
+export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, onCancel, onOpenTrack }: Props) {
   const [form, setForm] = useState<Partial<Track>>({
     name: "", artist: "", album: "", label: "", year: undefined, bpm: undefined,
     key: "", grain: "", sensations: [], masse_basse: "", role_set: "",
@@ -40,9 +42,22 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Prop
   const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [longNames, setLongNames] = useState(false);
+  const [duplicates, setDuplicates] = useState<Track[]>([]);
+  const [duplicatesDismissed, setDuplicatesDismissed] = useState(false);
+  const [confirmDuplicate, setConfirmDuplicate] = useState(false);
 
   const set = (field: keyof Track, value: unknown) =>
     setForm((f) => ({ ...f, [field]: value }));
+
+  const checkDuplicates = async (name: string, artist: string) => {
+    if (mode !== "add") return;
+    const results = await getTracks({ q: name });
+    const matches = results.filter(
+      (t) => t.artist.toLowerCase() === artist.toLowerCase()
+    );
+    setDuplicates(matches);
+    setDuplicatesDismissed(false);
+  };
 
   const handleSpotifyLookup = async () => {
     if (!spotifyUrl) return;
@@ -62,6 +77,7 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Prop
       setSpotifyUrl("");
       setAiSuggestion(null);
       setCompareMode(false);
+      await checkDuplicates(meta.name, meta.artist);
     } catch {
       alert("Impossible de récupérer les métadonnées Spotify.");
     } finally {
@@ -122,6 +138,10 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Prop
 
   const handleSave = async () => {
     if (!form.name || !form.artist) { alert("Titre et artiste obligatoires."); return; }
+    if (mode === "add" && duplicates.length > 0 && !duplicatesDismissed) {
+      setConfirmDuplicate(true);
+      return;
+    }
     setSaving(true);
     try { await onSave(form); } finally { setSaving(false); }
   };
@@ -137,6 +157,46 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Prop
 
   return (
     <div className="flex flex-col gap-5 pb-8">
+
+      {/* Duplicate warning */}
+      {mode === "add" && duplicates.length > 0 && !duplicatesDismissed && (
+        <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-yellow-400">⚠️ Déjà dans la bibliothèque</span>
+            <button type="button" onClick={() => setDuplicatesDismissed(true)} className="text-muted text-lg leading-none">×</button>
+          </div>
+          {duplicates.map((t) => (
+            <div key={t.id} className="flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-300 truncate">{t.artist} — {t.name}</span>
+              {onOpenTrack && (
+                <button type="button" onClick={() => onOpenTrack(t)}
+                  className="text-xs text-accent underline underline-offset-2 shrink-0">
+                  Ouvrir
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Duplicate confirmation modal */}
+      {confirmDuplicate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6">
+          <div className="w-full max-w-sm bg-surface border border-border rounded-xl p-5 space-y-4">
+            <p className="text-sm text-gray-200">Un morceau similaire existe déjà. Ajouter quand même ?</p>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setConfirmDuplicate(false)}
+                className="flex-1 py-2.5 rounded-lg border border-border text-gray-400 text-sm">
+                Annuler
+              </button>
+              <button type="button" onClick={async () => { setConfirmDuplicate(false); setSaving(true); try { await onSave(form); } finally { setSaving(false); } }}
+                className="flex-1 py-2.5 rounded-lg bg-accent text-white text-sm font-semibold">
+                Ajouter quand même
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Spotify */}
       <div className="space-y-2">
