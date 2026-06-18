@@ -154,7 +154,7 @@ async def _fetch_notion_pages() -> list[dict]:
 
 
 async def preview_sync(db: aiosqlite.Connection) -> dict:
-    """Compare Notion with local DB without writing. Returns {new: [...], updated: [...]}."""
+    """Compare Notion with local DB without writing. Returns {new, updated}."""
     pages = await _fetch_notion_pages()
     new_tracks: list[dict] = []
     updated_tracks: list[dict] = []
@@ -177,6 +177,15 @@ async def preview_sync(db: aiosqlite.Connection) -> dict:
             continue
 
     return {"new": new_tracks, "updated": updated_tracks}
+
+
+async def archive_in_notion(notion_id: str):
+    """Soft-delete a Notion page (archived=True). Reversible from Notion UI."""
+    notion = _get_client()
+    try:
+        await notion.pages.update(page_id=notion_id, archived=True)
+    finally:
+        await notion.aclose()
 
 
 async def sync_from_notion(db: aiosqlite.Connection):

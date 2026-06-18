@@ -10,6 +10,7 @@ interface Props {
   mode?: "add" | "edit";
   onSave: (data: Partial<Track>) => Promise<void>;
   onCancel: () => void;
+  onDelete?: () => Promise<void>;
   onOpenTrack?: (track: Track) => void;
 }
 
@@ -27,7 +28,7 @@ function hasUserTags(form: Partial<Track>): boolean {
   return !!(form.grain || (form.sensations?.length ?? 0) > 0 || form.masse_basse || form.role_set);
 }
 
-export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, onCancel, onOpenTrack }: Props) {
+export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, onCancel, onDelete, onOpenTrack }: Props) {
   const [form, setForm] = useState<Partial<Track>>({
     name: "", artist: "", album: "", label: "", year: undefined, bpm: undefined,
     key: "", grain: "", sensations: [], masse_basse: "", role_set: "",
@@ -42,6 +43,8 @@ export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, on
   const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [longNames, setLongNames] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [duplicates, setDuplicates] = useState<Track[]>([]);
   const [duplicatesDismissed, setDuplicatesDismissed] = useState(false);
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
@@ -144,6 +147,12 @@ export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, on
     }
     setSaving(true);
     try { await onSave(form); } finally { setSaving(false); }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!onDelete) return;
+    setDeleting(true);
+    try { await onDelete(); } finally { setDeleting(false); setConfirmDelete(false); }
   };
 
   const input = "w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-muted focus:outline-none focus:border-accent";
@@ -380,8 +389,38 @@ export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, on
           value={form.notes || ""} onChange={(e) => set("notes", e.target.value)} />
       </div>
 
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6">
+          <div className="w-full max-w-sm bg-surface border border-border rounded-xl p-5 space-y-4">
+            <p className="text-sm font-semibold text-white">Supprimer "{form.name}" ?</p>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              {form.notion_id
+                ? "Le morceau sera supprimé de Grimoire et archivé dans Notion."
+                : "Le morceau sera supprimé de Grimoire."}
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setConfirmDelete(false)}
+                className="flex-1 text-xs py-2 rounded-lg border border-border text-muted">
+                Annuler
+              </button>
+              <button type="button" onClick={handleDeleteConfirm} disabled={deleting}
+                className="flex-1 text-xs py-2 rounded-lg bg-red-600 text-white font-medium disabled:opacity-40">
+                {deleting ? "Suppression..." : "Supprimer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex gap-3">
+        {onDelete && (
+          <button type="button" onClick={() => setConfirmDelete(true)}
+            className="py-3 px-4 rounded-lg border border-red-800 text-red-400 text-sm font-medium">
+            🗑
+          </button>
+        )}
         <button type="button" onClick={onCancel}
           className="flex-1 py-3 rounded-lg border border-border text-gray-400 text-sm font-medium">
           Annuler

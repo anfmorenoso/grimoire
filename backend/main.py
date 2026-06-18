@@ -14,7 +14,7 @@ load_dotenv(dotenv_path="../.env")
 
 from database import init_db, get_db, row_to_dict
 from models import TrackCreate, TrackUpdate, SpotifyLookupRequest
-from notion_sync import sync_from_notion, push_to_notion, update_in_notion, preview_sync
+from notion_sync import sync_from_notion, push_to_notion, update_in_notion, preview_sync, archive_in_notion
 from spotify import lookup_spotify_track
 from vocabulary import FULL_WIKI
 from llm import suggest_tags
@@ -226,8 +226,18 @@ async def update_track(track_id: int, body: TrackUpdate):
 async def delete_track(track_id: int):
     db = await get_db()
     try:
+        c = await db.execute("SELECT notion_id FROM tracks WHERE id = ?", [track_id])
+        row = await c.fetchone()
+        notion_id = row["notion_id"] if row else None
+
         await db.execute("DELETE FROM tracks WHERE id = ?", [track_id])
         await db.commit()
+
+        if notion_id:
+            try:
+                await archive_in_notion(notion_id)
+            except Exception:
+                pass
     finally:
         await db.close()
 
