@@ -45,7 +45,6 @@ export default function Tooltip({ content, children }: Props) {
   return (
     <div
       ref={triggerRef}
-      className="contents"
       onMouseEnter={show}
       onMouseLeave={hide}
       onTouchStart={onTouchStart}
