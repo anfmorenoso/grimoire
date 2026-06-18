@@ -71,6 +71,16 @@ l'Alchemy Circle et au Hive).
 * **Biais de Densité :** Un morceau chargé en micro-détails n'est pas 'Texturé'
 (réservé au grain mat, terreux et lo-fi). S'il est dense mais d'une clarté absolue
 dans le spectre, son grain est **'Minéral'**.
+* **Biais "Hypnotique" :** Ce tag est réservé aux morceaux dont la STRUCTURE ELLE-MÊME
+est construite sur la répétition micro-variée obsédante — ce n'est pas un synonyme
+de "répétitif" ou "techno". Si le morceau est simplement sombre et groovant,
+préfère 'Rituel' ou 'Organique'. 'Hypnotique' exige que la boucle crée une transe
+active et focalisée, perceptible dès la première minute.
+* **Biais "Mystérieux" :** Ce tag exige une atmosphère de paranoïa ou d'opacité
+narrative — surveillance, ombres, cinéma noir. Un morceau simplement sombre ou
+profond n'est pas 'Mystérieux'. Si la sensation dominante est la cérémonie ou
+le sacré, c'est 'Rituel'. Si c'est la vastitude spatiale, c'est 'Cinématique'.
+'Mystérieux' implique une intention narrative de dissimulation ou de menace sourde.
 
 ### 📖 4. DICTIONNAIRE DE RÉFÉRENCE
 Réfère-toi strictement aux définitions du système
