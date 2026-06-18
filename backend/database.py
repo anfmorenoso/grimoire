@@ -48,6 +48,16 @@ async def init_db():
                 await db.execute(col_sql)
             except Exception:
                 pass  # column already exists
+
+        # One-time fix: if all non-NULL created_at values are identical, they were
+        # set by ALTER TABLE DEFAULT (unixepoch()) read-time evaluation bug — reset to NULL
+        # so COALESCE(created_at, id) falls back to id and sort direction works correctly.
+        await db.execute("""
+            UPDATE tracks SET created_at = NULL
+            WHERE created_at IS NOT NULL
+            AND (SELECT COUNT(*) FROM tracks WHERE created_at IS NOT NULL) > 1
+            AND 1 = (SELECT COUNT(DISTINCT created_at) FROM tracks WHERE created_at IS NOT NULL)
+        """)
         await db.commit()
 
 
