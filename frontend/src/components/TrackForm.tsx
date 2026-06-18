@@ -203,20 +203,15 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Prop
         </label>
       </div>
 
-      {/* AI button */}
+      {/* AI button — top: analyse */}
       <button
         type="button"
         onClick={handleAiSuggest}
         disabled={aiState === "loading"}
         className="w-full py-2.5 rounded-lg border border-accent/40 text-accent text-sm font-medium disabled:opacity-40 hover:bg-accent/10 transition-colors"
       >
-        {aiButtonLabel()}
+        {aiState === "loading" ? "Analyse..." : "✨ Analyser avec IA"}
       </button>
-
-      {/* AI overall summary */}
-      {aiState === "done" && aiSuggestion?.reasoning && (
-        <p className="text-xs text-accent/70 italic leading-relaxed px-1">{aiSuggestion.reasoning}</p>
-      )}
 
       {/* Tags — each followed by its AI reasoning */}
       <div className="flex items-center justify-between">
@@ -281,6 +276,22 @@ export default function TrackForm({ wiki, initial = {}, onSave, onCancel }: Prop
       />
       {aiState === "done" && aiSuggestion?.role_set_reasoning && (
         <AiNote>{aiSuggestion.role_set_reasoning}</AiNote>
+      )}
+
+      {/* AI overall summary */}
+      {aiState === "done" && aiSuggestion?.reasoning && (
+        <p className="text-xs text-accent/70 italic leading-relaxed px-1">{aiSuggestion.reasoning}</p>
+      )}
+
+      {/* AI button — bottom: compare / re-analyse (only after first analysis) */}
+      {aiState === "done" && (
+        <button
+          type="button"
+          onClick={handleAiSuggest}
+          className="w-full py-2.5 rounded-lg border border-accent/40 text-accent text-sm font-medium hover:bg-accent/10 transition-colors"
+        >
+          {compareMode ? "✨ Ré-analyser" : "✨ Comparer avec IA"}
+        </button>
       )}
 
       {/* Layering — editable, auto-filled by AI */}
