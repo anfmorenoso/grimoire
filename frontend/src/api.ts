@@ -21,7 +21,6 @@ const api = axios.create({
 export interface Track {
   id: number;
   notion_id?: string;
-  hq_download?: boolean;
   name: string;
   artist: string;
   album?: string;
