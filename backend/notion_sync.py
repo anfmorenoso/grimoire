@@ -81,6 +81,7 @@ def notion_page_to_dict(page: dict) -> dict:
         "downloaded": downloaded_prop.get("checkbox", False),
         "layering": _text(p.get("Layering", {"rich_text": []})),
         "synced_at": datetime.now(timezone.utc).isoformat(),
+        "notion_updated_at": page.get("last_edited_time"),
     }
 
 
@@ -188,9 +189,9 @@ async def sync_from_notion(db: aiosqlite.Connection):
             await db.execute(
                 """
                 INSERT INTO tracks (notion_id, name, artist, album, label, year, bpm, key,
-                    grain, sensations, masse_basse, role_set, url, downloaded, layering, synced_at)
+                    grain, sensations, masse_basse, role_set, url, downloaded, layering, synced_at, notion_updated_at)
                 VALUES (:notion_id, :name, :artist, :album, :label, :year, :bpm, :key,
-                    :grain, :sensations, :masse_basse, :role_set, :url, :downloaded, :layering, :synced_at)
+                    :grain, :sensations, :masse_basse, :role_set, :url, :downloaded, :layering, :synced_at, :notion_updated_at)
                 ON CONFLICT(notion_id) DO UPDATE SET
                     name=excluded.name, artist=excluded.artist, album=excluded.album,
                     label=excluded.label, year=excluded.year, bpm=excluded.bpm, key=excluded.key,
@@ -198,7 +199,8 @@ async def sync_from_notion(db: aiosqlite.Connection):
                     masse_basse=excluded.masse_basse, role_set=excluded.role_set,
                     url=excluded.url, downloaded=excluded.downloaded,
                     layering=COALESCE(excluded.layering, tracks.layering),
-                    synced_at=excluded.synced_at
+                    synced_at=excluded.synced_at,
+                    notion_updated_at=excluded.notion_updated_at
                 """,
                 {**row, "sensations": json.dumps(row["sensations"])},
             )

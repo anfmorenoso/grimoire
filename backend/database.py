@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS tracks (
     downloaded  INTEGER DEFAULT 0,
     notes       TEXT,
     layering    TEXT,
-    synced_at   TEXT,
-    created_at  INTEGER DEFAULT (unixepoch())
+    synced_at        TEXT,
+    notion_updated_at TEXT
 )
 """
 
@@ -43,21 +43,12 @@ async def init_db():
             "ALTER TABLE tracks ADD COLUMN layering TEXT",
             "ALTER TABLE tracks ADD COLUMN year INTEGER",
             "ALTER TABLE tracks ADD COLUMN created_at INTEGER",
+            "ALTER TABLE tracks ADD COLUMN notion_updated_at TEXT",
         ]:
             try:
                 await db.execute(col_sql)
             except Exception:
                 pass  # column already exists
-
-        # One-time fix: if all non-NULL created_at values are identical, they were
-        # set by ALTER TABLE DEFAULT (unixepoch()) read-time evaluation bug — reset to NULL
-        # so COALESCE(created_at, id) falls back to id and sort direction works correctly.
-        await db.execute("""
-            UPDATE tracks SET created_at = NULL
-            WHERE created_at IS NOT NULL
-            AND (SELECT COUNT(*) FROM tracks WHERE created_at IS NOT NULL) > 1
-            AND 1 = (SELECT COUNT(DISTINCT created_at) FROM tracks WHERE created_at IS NOT NULL)
-        """)
         await db.commit()
 
 

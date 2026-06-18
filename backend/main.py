@@ -136,7 +136,7 @@ async def list_tracks(
             params.extend([f"%{q}%", f"%{q}%", f"%{q}%"])
 
         where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-        sort_expr = {"id": "COALESCE(created_at, id)", "name": "name COLLATE NOCASE", "artist": "artist COLLATE NOCASE"}.get(sort, "COALESCE(created_at, id)")
+        sort_expr = {"id": "notion_updated_at", "name": "name COLLATE NOCASE", "artist": "artist COLLATE NOCASE"}.get(sort, "notion_updated_at")
         sort_dir = "ASC" if dir.lower() == "asc" else "DESC"
         cursor = await db.execute(
             f"SELECT * FROM tracks {where} ORDER BY {sort_expr} {sort_dir}", params
