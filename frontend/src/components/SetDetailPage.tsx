@@ -78,17 +78,29 @@ export default function SetDetailPage({ set, wiki, onBack, onSetUpdated }: Props
               {entry.position}
             </span>
 
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 space-y-1">
               {entry.deleted ? (
                 <div className="bg-card border border-border rounded-xl px-4 py-3 opacity-40">
                   <p className="text-sm text-muted italic">Morceau supprimé</p>
                 </div>
               ) : (
-                <TrackCard
-                  track={entry}
-                  wiki={wiki}
-                  onClick={() => {}}
-                />
+                <>
+                  <TrackCard
+                    track={entry}
+                    wiki={wiki}
+                    onClick={() => {}}
+                  />
+                  {(entry.layering || entry.notes) && (
+                    <div className="px-3 py-2 rounded-lg bg-card/50 border border-border/50">
+                      {entry.layering && (
+                        <p className="text-xs text-muted leading-relaxed">{entry.layering}</p>
+                      )}
+                      {entry.notes && (
+                        <p className="text-xs text-gray-500 leading-relaxed mt-0.5">{entry.notes}</p>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
