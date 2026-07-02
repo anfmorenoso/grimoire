@@ -215,7 +215,7 @@ async def sync_from_notion(db: aiosqlite.Connection):
                     synced_at=excluded.synced_at,
                     notion_updated_at=excluded.notion_updated_at
                 """,
-                {**row, "sensations": json.dumps(row["sensations"])},
+                {**row, "sensations": json.dumps(row["sensations"], ensure_ascii=False)},
             )
             upserted += 1
         except Exception:

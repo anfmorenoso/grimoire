@@ -72,6 +72,18 @@ async def init_db():
                 await db.execute(col_sql)
             except Exception:
                 pass  # column already exists
+        # Normalize sensations JSON to unescaped Unicode so LIKE filters work.
+        # json.dumps previously used ASCII escapes (e.g. é) which broke
+        # accented-key filters like cinématique, mystérieux, etc.
+        cursor = await db.execute("SELECT id, sensations FROM tracks WHERE sensations IS NOT NULL")
+        rows = await cursor.fetchall()
+        for row in rows:
+            try:
+                normalized = json.dumps(json.loads(row[1]), ensure_ascii=False)
+                if normalized != row[1]:
+                    await db.execute("UPDATE tracks SET sensations = ? WHERE id = ?", [normalized, row[0]])
+            except Exception:
+                pass
         await db.commit()
 
 

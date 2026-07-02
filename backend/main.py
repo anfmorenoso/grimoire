@@ -174,7 +174,7 @@ async def create_track(body: TrackCreate):
             (
                 notion_id, data["name"], data["artist"], data["album"],
                 data["label"], data.get("year"), data["bpm"], data["key"], data["grain"],
-                json.dumps(data["sensations"]), data["masse_basse"],
+                json.dumps(data["sensations"], ensure_ascii=False), data["masse_basse"],
                 data["role_set"], data["url"], int(data["downloaded"]),
                 int(data.get("hq_download", False)), data["notes"], data.get("layering"),
             ),
@@ -202,7 +202,7 @@ async def update_track(track_id: int, body: TrackUpdate):
         params = []
         for field, value in data.items():
             set_clauses.append(f"{field} = ?")
-            params.append(json.dumps(value) if field == "sensations" else value)
+            params.append(json.dumps(value, ensure_ascii=False) if field == "sensations" else value)
 
         if set_clauses:
             params.append(track_id)
