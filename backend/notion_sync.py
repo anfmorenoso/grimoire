@@ -264,6 +264,35 @@ async def update_in_notion(notion_id: str, data: dict):
 
 # --- Sets sync ---
 
+_set_track_prop_names: dict | None = None
+
+
+async def _get_set_track_props(notion: AsyncClient) -> dict:
+    """Discover the relation property names in the Set Tracks DB by inspecting the schema.
+    Notion auto-names relations after the target database, so we can't hardcode them."""
+    global _set_track_prop_names
+    if _set_track_prop_names:
+        return _set_track_prop_names
+
+    schema = await notion.databases.retrieve(database_id=_get_set_tracks_db_id())
+    props = {"set": "Set", "track": "Track"}  # fallback defaults
+
+    sets_id = _get_sets_db_id().replace("-", "")
+    tracks_id = _get_db_id().replace("-", "")
+
+    for name, prop in schema.get("properties", {}).items():
+        if prop.get("type") != "relation":
+            continue
+        related = prop.get("relation", {}).get("database_id", "").replace("-", "")
+        if related == sets_id:
+            props["set"] = name
+        elif related == tracks_id:
+            props["track"] = name
+
+    _set_track_prop_names = props
+    return props
+
+
 async def _query_all(notion: AsyncClient, database_id: str) -> list[dict]:
     pages, cursor = [], None
     while True:
@@ -322,13 +351,14 @@ async def push_set_track_to_notion(
         return None
     notion = _get_client()
     try:
+        prop_names = await _get_set_track_props(notion)
         props: dict = {
             "Name": {"title": [{"text": {"content": track_name}}]},
             "Position": {"number": position},
-            "Set": {"relation": [{"id": set_notion_id}]},
+            prop_names["set"]: {"relation": [{"id": set_notion_id}]},
         }
         if track_notion_id:
-            props["Track"] = {"relation": [{"id": track_notion_id}]}
+            props[prop_names["track"]] = {"relation": [{"id": track_notion_id}]}
         page = await notion.pages.create(
             parent={"database_id": _get_set_tracks_db_id()},
             properties=props,
@@ -391,6 +421,7 @@ async def sync_sets_from_notion(db: aiosqlite.Connection):
         track_map = {row[1]: row[0] for row in await c.fetchall()}
 
         # --- Set tracks ---
+        prop_names = await _get_set_track_props(notion)
         st_pages = await _query_all(notion, _get_set_tracks_db_id())
         for page in st_pages:
             if page.get("archived"):
@@ -398,14 +429,14 @@ async def sync_sets_from_notion(db: aiosqlite.Connection):
             notion_id = page["id"]
             props = page["properties"]
 
-            set_relations = props.get("Set", {}).get("relation", [])
+            set_relations = props.get(prop_names["set"], {}).get("relation", [])
             if not set_relations:
                 continue
             set_id = set_map.get(set_relations[0]["id"])
             if set_id is None:
                 continue
 
-            track_relations = props.get("Track", {}).get("relation", [])
+            track_relations = props.get(prop_names["track"], {}).get("relation", [])
             track_id = track_map.get(track_relations[0]["id"]) if track_relations else None
             position = props.get("Position", {}).get("number") or 0
 
