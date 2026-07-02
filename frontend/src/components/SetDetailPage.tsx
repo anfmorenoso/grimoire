@@ -17,6 +17,7 @@ export default function SetDetailPage({ set, wiki, onBack, onSetUpdated }: Props
   const [removed, setRemoved] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  const [showNotes, setShowNotes] = useState(true);
   const [newName, setNewName] = useState(set.name);
   const loadedRef = useRef(false);
 
@@ -102,6 +103,16 @@ export default function SetDetailPage({ set, wiki, onBack, onSetUpdated }: Props
         >
           ✏️
         </button>
+        <button
+          type="button"
+          onClick={() => setShowNotes((n) => !n)}
+          className={`text-xs px-2 py-1 border rounded-lg shrink-0 transition-colors ${
+            showNotes ? "border-accent text-accent bg-accent/10" : "border-border text-muted"
+          }`}
+          title={showNotes ? "Masquer les notes" : "Afficher les notes"}
+        >
+          📝
+        </button>
       </header>
 
       {isDirty && (
@@ -143,7 +154,7 @@ export default function SetDetailPage({ set, wiki, onBack, onSetUpdated }: Props
               ) : (
                 <>
                   <TrackCard track={entry} wiki={wiki} onClick={() => {}} />
-                  {(entry.layering || entry.notes) && (
+                  {showNotes && (entry.layering || entry.notes) && (
                     <div className="px-3 py-2 rounded-lg bg-card/50 border border-border/50">
                       {entry.layering && (
                         <p className="text-xs text-muted leading-relaxed">{entry.layering}</p>
