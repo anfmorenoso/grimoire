@@ -31,10 +31,12 @@ CREATE TABLE IF NOT EXISTS sets (
 CREATE TABLE IF NOT EXISTS set_tracks (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
     set_id   INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
-    track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+    track_id INTEGER REFERENCES tracks(id) ON DELETE SET NULL,  -- NULL = deleted track
     position INTEGER NOT NULL
 );
 ```
+
+`track_id` is nullable with `ON DELETE SET NULL`: when a track is deleted from the grimoire, its slot in the set becomes `NULL` instead of disappearing. The position is preserved so the rest of the set order stays intact.
 
 Add both tables in `init_db()` alongside existing tracks table.
 
@@ -118,8 +120,16 @@ reorderSetTracks(setId: number, trackIds: number[])
 
 **`SetDetailPage.tsx`** — ordered track list for one set
 - Back button → SetsPage
-- Each track: position badge + TrackCard + ↑↓ buttons + × remove
-- "Renommer" and "Supprimer le set" in header actions
+- Header actions: "Renommer" and "Supprimer le set"
+- Each track row:
+  - Position badge (e.g. `#1`)
+  - TrackCard (read-only, no tag-click filtering)
+  - **↑ button**: move track one position up (disabled on first track)
+  - **↓ button**: move track one position down (disabled on last track)
+  - **🗑 button**: remove from set (re-numbers remaining positions)
+- If `track_id` is `null` (track deleted from grimoire): show a greyed-out "Morceau supprimé" placeholder at that position with:
+  - ↑ and ↓ buttons still functional (can reorder the slot)
+  - **🗑 button**: remove this deleted-track slot from the set entirely
 
 ### State changes — `App.tsx`
 
@@ -146,7 +156,8 @@ reorderSetTracks(setId: number, trackIds: number[])
 
 ## Edge Cases
 
-- Deleting a track from grimoire should cascade-delete it from all sets (handled by FK `ON DELETE CASCADE`)
-- Re-numbering positions after removal: query remaining tracks ordered by position, reassign 1..N
-- Empty set: show "Aucun morceau" placeholder
-- Set name collision: allowed (no unique constraint — two sets can have same name)
+- **Deleted track in set**: `track_id` becomes `NULL` via `ON DELETE SET NULL`. The position slot is kept; `SetDetailPage` renders a greyed "Morceau supprimé" card. User can manually remove the slot with ×.
+- **Re-numbering positions**: after any removal (track or slot), query remaining rows ordered by position and reassign 1..N to keep positions contiguous.
+- **Empty set**: show "Aucun morceau" placeholder.
+- **Set name collision**: allowed — no unique constraint, two sets can share a name.
+- **`GET /sets/{id}/tracks` response**: each item includes `position` and either the full track fields or `{position, track_id: null, deleted: true}` for NULL slots.
