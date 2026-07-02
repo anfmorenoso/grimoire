@@ -9,6 +9,7 @@ interface Props {
 
 export default function SetsPage({ onBack, onOpenSet }: Props) {
   const [sets, setSets] = useState<DJSet[]>([]);
+  const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -22,11 +23,14 @@ export default function SetsPage({ onBack, onOpenSet }: Props) {
     try {
       await createSet(name);
       setNewName("");
+      setShowCreate(false);
       await load();
     } finally {
       setCreating(false);
     }
   };
+
+  const openCreate = () => { setNewName(""); setShowCreate(true); };
 
   const handleDelete = async (set: DJSet, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -42,12 +46,50 @@ export default function SetsPage({ onBack, onOpenSet }: Props) {
           ←
         </button>
         <h1 className="text-base font-semibold flex-1">Sets</h1>
+        <button
+          type="button"
+          onClick={openCreate}
+          className="text-xs px-3 py-1.5 rounded-lg bg-accent text-white font-medium"
+        >
+          + Nouveau
+        </button>
       </header>
 
+      {showCreate && (
+        <div className="px-4 py-3 border-b border-border flex gap-2 bg-surface">
+          <input
+            autoFocus
+            className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-muted focus:outline-none focus:border-accent"
+            placeholder="Nom du set..."
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleCreate();
+              if (e.key === "Escape") setShowCreate(false);
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleCreate}
+            disabled={!newName.trim() || creating}
+            className="px-3 py-2 rounded-lg bg-accent text-white text-sm font-medium disabled:opacity-40"
+          >
+            Créer
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCreate(false)}
+            className="px-3 py-2 rounded-lg border border-border text-muted text-sm"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <main className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-        {sets.length === 0 && (
+        {sets.length === 0 && !showCreate && (
           <p className="text-center text-muted text-sm pt-12">
-            Aucun set — crée-en un ci-dessous
+            Aucun set — appuie sur + Nouveau pour commencer
           </p>
         )}
         {sets.map((s) => (
@@ -74,23 +116,6 @@ export default function SetsPage({ onBack, onOpenSet }: Props) {
         ))}
       </main>
 
-      <div className="px-4 py-3 border-t border-border flex gap-2">
-        <input
-          className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-muted focus:outline-none focus:border-accent"
-          placeholder="Nom du set..."
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-        />
-        <button
-          type="button"
-          onClick={handleCreate}
-          disabled={!newName.trim() || creating}
-          className="px-3 py-2 rounded-lg bg-accent text-white text-sm font-medium disabled:opacity-40"
-        >
-          + Créer
-        </button>
-      </div>
     </div>
   );
 }
