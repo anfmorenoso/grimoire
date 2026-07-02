@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv(dotenv_path="../.env")
 
 from database import init_db, get_db, row_to_dict
-from models import TrackCreate, TrackUpdate, SpotifyLookupRequest
+from models import TrackCreate, TrackUpdate, SpotifyLookupRequest, SetCreate, SetUpdate, SetTrackAdd, SetTrackOrder
 from notion_sync import sync_from_notion, push_to_notion, update_in_notion, preview_sync, archive_in_notion
 from spotify import lookup_spotify_track
 from vocabulary import FULL_WIKI
@@ -273,6 +273,149 @@ async def suggest(body: SuggestRequest):
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM error: {str(e)}")
+
+
+# --- Sets ---
+
+@app.get("/sets")
+async def list_sets():
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            """SELECT s.id, s.name, s.created_at, COUNT(st.id) as track_count
+               FROM sets s LEFT JOIN set_tracks st ON s.id = st.set_id
+               GROUP BY s.id ORDER BY s.created_at DESC"""
+        )
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        await db.close()
+
+
+@app.post("/sets", status_code=201)
+async def create_set(body: SetCreate):
+    db = await get_db()
+    try:
+        cursor = await db.execute("INSERT INTO sets (name) VALUES (?)", [body.name])
+        await db.commit()
+        c = await db.execute("SELECT * FROM sets WHERE id = ?", [cursor.lastrowid])
+        return dict(await c.fetchone())
+    finally:
+        await db.close()
+
+
+@app.patch("/sets/{set_id}")
+async def rename_set(set_id: int, body: SetUpdate):
+    db = await get_db()
+    try:
+        await db.execute("UPDATE sets SET name = ? WHERE id = ?", [body.name, set_id])
+        await db.commit()
+        c = await db.execute("SELECT * FROM sets WHERE id = ?", [set_id])
+        row = await c.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Set not found")
+        return dict(row)
+    finally:
+        await db.close()
+
+
+@app.delete("/sets/{set_id}", status_code=204)
+async def delete_set(set_id: int):
+    db = await get_db()
+    try:
+        await db.execute("DELETE FROM sets WHERE id = ?", [set_id])
+        await db.commit()
+    finally:
+        await db.close()
+
+
+@app.get("/sets/{set_id}/tracks")
+async def get_set_tracks(set_id: int):
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            """SELECT st.id as set_track_id, st.position, st.track_id,
+                      t.id, t.notion_id, t.name, t.artist, t.album, t.label, t.year,
+                      t.bpm, t.key, t.grain, t.sensations, t.masse_basse, t.role_set,
+                      t.url, t.downloaded, t.hq_download, t.notes, t.layering
+               FROM set_tracks st
+               LEFT JOIN tracks t ON st.track_id = t.id
+               WHERE st.set_id = ?
+               ORDER BY st.position""",
+            [set_id],
+        )
+        rows = await cursor.fetchall()
+        result = []
+        for row in rows:
+            d = dict(row)
+            if d["track_id"] is None:
+                result.append({"set_track_id": d["set_track_id"], "position": d["position"], "deleted": True})
+            else:
+                d["sensations"] = json.loads(d["sensations"]) if d.get("sensations") else []
+                d["downloaded"] = bool(d.get("downloaded", 0))
+                d["hq_download"] = bool(d.get("hq_download", 0))
+                result.append(d)
+        return result
+    finally:
+        await db.close()
+
+
+@app.post("/sets/{set_id}/tracks", status_code=201)
+async def add_track_to_set(set_id: int, body: SetTrackAdd):
+    db = await get_db()
+    try:
+        if not body.force:
+            c = await db.execute(
+                "SELECT id FROM set_tracks WHERE set_id = ? AND track_id = ?",
+                [set_id, body.track_id],
+            )
+            if await c.fetchone():
+                raise HTTPException(status_code=409, detail="already_in_set")
+        c = await db.execute(
+            "SELECT COALESCE(MAX(position), 0) + 1 FROM set_tracks WHERE set_id = ?", [set_id]
+        )
+        next_pos = (await c.fetchone())[0]
+        cursor = await db.execute(
+            "INSERT INTO set_tracks (set_id, track_id, position) VALUES (?, ?, ?)",
+            [set_id, body.track_id, next_pos],
+        )
+        await db.commit()
+        return {"id": cursor.lastrowid, "set_id": set_id, "track_id": body.track_id, "position": next_pos}
+    finally:
+        await db.close()
+
+
+@app.put("/sets/{set_id}/tracks/order")
+async def reorder_set_tracks(set_id: int, body: SetTrackOrder):
+    db = await get_db()
+    try:
+        for i, set_track_id in enumerate(body.ordered_ids, 1):
+            await db.execute(
+                "UPDATE set_tracks SET position = ? WHERE id = ? AND set_id = ?",
+                [i, set_track_id, set_id],
+            )
+        await db.commit()
+        return {"ok": True}
+    finally:
+        await db.close()
+
+
+@app.delete("/sets/{set_id}/tracks/{set_track_id}", status_code=204)
+async def remove_from_set(set_id: int, set_track_id: int):
+    db = await get_db()
+    try:
+        await db.execute(
+            "DELETE FROM set_tracks WHERE id = ? AND set_id = ?", [set_track_id, set_id]
+        )
+        c = await db.execute(
+            "SELECT id FROM set_tracks WHERE set_id = ? ORDER BY position", [set_id]
+        )
+        rows = await c.fetchall()
+        for i, row in enumerate(rows, 1):
+            await db.execute("UPDATE set_tracks SET position = ? WHERE id = ?", [i, row["id"]])
+        await db.commit()
+    finally:
+        await db.close()
 
 
 # --- SPA static file serving (must be last) ---

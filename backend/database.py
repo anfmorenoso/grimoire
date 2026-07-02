@@ -30,16 +30,37 @@ CREATE TABLE IF NOT EXISTS tracks (
 )
 """
 
+CREATE_SETS_TABLE = """
+CREATE TABLE IF NOT EXISTS sets (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL,
+    created_at INTEGER DEFAULT (unixepoch())
+)
+"""
+
+CREATE_SET_TRACKS_TABLE = """
+CREATE TABLE IF NOT EXISTS set_tracks (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    set_id   INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
+    track_id INTEGER REFERENCES tracks(id) ON DELETE SET NULL,
+    position INTEGER NOT NULL
+)
+"""
+
 
 async def get_db() -> aiosqlite.Connection:
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
+    await db.execute("PRAGMA foreign_keys = ON")
     return db
 
 
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
         await db.execute(CREATE_TRACKS_TABLE)
+        await db.execute(CREATE_SETS_TABLE)
+        await db.execute(CREATE_SET_TRACKS_TABLE)
         for col_sql in [
             "ALTER TABLE tracks ADD COLUMN layering TEXT",
             "ALTER TABLE tracks ADD COLUMN year INTEGER",
