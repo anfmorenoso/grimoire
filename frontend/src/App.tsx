@@ -359,8 +359,15 @@ export default function App() {
             </div>
           )}
 
+          {/* Results count — shown when filtering or searching */}
+          {(activeCount > 0 || search) && (
+            <span className="text-xs text-muted shrink-0 ml-auto">
+              {tracks.length} résultat{tracks.length !== 1 ? "s" : ""}
+            </span>
+          )}
+
           {/* Sort toggle */}
-          <div className="flex items-center gap-0.5 ml-auto shrink-0">
+          <div className={`flex items-center gap-0.5 shrink-0 ${activeCount > 0 || search ? "" : "ml-auto"}`}>
             <button
               type="button"
               onClick={() => {
