@@ -27,6 +27,18 @@ def _get_client() -> AsyncClient:
     return AsyncClient(auth=os.getenv("NOTION_TOKEN"))
 
 
+def _get_sets_db_id() -> str:
+    return os.getenv("NOTION_SETS_DB_ID", "")
+
+
+def _get_set_tracks_db_id() -> str:
+    return os.getenv("NOTION_SET_TRACKS_DB_ID", "")
+
+
+def _sets_enabled() -> bool:
+    return bool(_get_sets_db_id() and _get_set_tracks_db_id())
+
+
 def _get_db_id() -> str:
     return os.getenv("NOTION_DATABASE_ID", "")
 
@@ -246,5 +258,166 @@ async def update_in_notion(notion_id: str, data: dict):
             page_id=notion_id,
             properties=dict_to_notion_properties(data),
         )
+    finally:
+        await notion.aclose()
+
+
+# --- Sets sync ---
+
+async def _query_all(notion: AsyncClient, database_id: str) -> list[dict]:
+    pages, cursor = [], None
+    while True:
+        kwargs: dict = {"database_id": database_id, "page_size": 100}
+        if cursor:
+            kwargs["start_cursor"] = cursor
+        resp = await notion.databases.query(**kwargs)
+        pages.extend(resp["results"])
+        if not resp.get("has_more"):
+            break
+        cursor = resp.get("next_cursor")
+    return pages
+
+
+async def push_set_to_notion(name: str) -> str | None:
+    if not _sets_enabled():
+        return None
+    notion = _get_client()
+    try:
+        page = await notion.pages.create(
+            parent={"database_id": _get_sets_db_id()},
+            properties={"Name": {"title": [{"text": {"content": name}}]}},
+        )
+        return page["id"]
+    finally:
+        await notion.aclose()
+
+
+async def update_set_in_notion(notion_id: str, name: str):
+    if not _sets_enabled():
+        return
+    notion = _get_client()
+    try:
+        await notion.pages.update(
+            page_id=notion_id,
+            properties={"Name": {"title": [{"text": {"content": name}}]}},
+        )
+    finally:
+        await notion.aclose()
+
+
+async def archive_set_in_notion(notion_id: str):
+    if not _sets_enabled():
+        return
+    notion = _get_client()
+    try:
+        await notion.pages.update(page_id=notion_id, archived=True)
+    finally:
+        await notion.aclose()
+
+
+async def push_set_track_to_notion(
+    set_notion_id: str, track_notion_id: str | None, position: int, track_name: str
+) -> str | None:
+    if not _sets_enabled():
+        return None
+    notion = _get_client()
+    try:
+        props: dict = {
+            "Name": {"title": [{"text": {"content": track_name}}]},
+            "Position": {"number": position},
+            "Set": {"relation": [{"id": set_notion_id}]},
+        }
+        if track_notion_id:
+            props["Track"] = {"relation": [{"id": track_notion_id}]}
+        page = await notion.pages.create(
+            parent={"database_id": _get_set_tracks_db_id()},
+            properties=props,
+        )
+        return page["id"]
+    finally:
+        await notion.aclose()
+
+
+async def update_set_track_position_in_notion(notion_id: str, position: int):
+    if not _sets_enabled():
+        return
+    notion = _get_client()
+    try:
+        await notion.pages.update(
+            page_id=notion_id,
+            properties={"Position": {"number": position}},
+        )
+    finally:
+        await notion.aclose()
+
+
+async def archive_set_track_in_notion(notion_id: str):
+    if not _sets_enabled():
+        return
+    notion = _get_client()
+    try:
+        await notion.pages.update(page_id=notion_id, archived=True)
+    finally:
+        await notion.aclose()
+
+
+async def sync_sets_from_notion(db: aiosqlite.Connection):
+    """Pull Grimoire Sets + Grimoire Set Tracks from Notion into SQLite."""
+    if not _sets_enabled():
+        return
+    notion = _get_client()
+    try:
+        # --- Sets ---
+        set_pages = await _query_all(notion, _get_sets_db_id())
+        for page in set_pages:
+            if page.get("archived"):
+                continue
+            notion_id = page["id"]
+            name = "".join(t["plain_text"] for t in page["properties"]["Name"]["title"]) or "Sans nom"
+            created_at = int(
+                datetime.fromisoformat(page["created_time"].replace("Z", "+00:00")).timestamp()
+            )
+            await db.execute(
+                """INSERT INTO sets (notion_id, name, created_at) VALUES (?, ?, ?)
+                   ON CONFLICT(notion_id) DO UPDATE SET name=excluded.name""",
+                [notion_id, name, created_at],
+            )
+
+        # Build id maps for the join
+        c = await db.execute("SELECT id, notion_id FROM sets WHERE notion_id IS NOT NULL")
+        set_map = {row[1]: row[0] for row in await c.fetchall()}
+
+        c = await db.execute("SELECT id, notion_id FROM tracks WHERE notion_id IS NOT NULL")
+        track_map = {row[1]: row[0] for row in await c.fetchall()}
+
+        # --- Set tracks ---
+        st_pages = await _query_all(notion, _get_set_tracks_db_id())
+        for page in st_pages:
+            if page.get("archived"):
+                continue
+            notion_id = page["id"]
+            props = page["properties"]
+
+            set_relations = props.get("Set", {}).get("relation", [])
+            if not set_relations:
+                continue
+            set_id = set_map.get(set_relations[0]["id"])
+            if set_id is None:
+                continue
+
+            track_relations = props.get("Track", {}).get("relation", [])
+            track_id = track_map.get(track_relations[0]["id"]) if track_relations else None
+            position = props.get("Position", {}).get("number") or 0
+
+            await db.execute(
+                """INSERT INTO set_tracks (notion_id, set_id, track_id, position) VALUES (?, ?, ?, ?)
+                   ON CONFLICT(notion_id) DO UPDATE SET
+                       set_id=excluded.set_id,
+                       track_id=excluded.track_id,
+                       position=excluded.position""",
+                [notion_id, set_id, track_id, position],
+            )
+
+        await db.commit()
     finally:
         await notion.aclose()

@@ -14,7 +14,12 @@ load_dotenv(dotenv_path="../.env")
 
 from database import init_db, get_db, row_to_dict
 from models import TrackCreate, TrackUpdate, SpotifyLookupRequest, SetCreate, SetUpdate, SetTrackAdd, SetTrackOrder
-from notion_sync import sync_from_notion, push_to_notion, update_in_notion, preview_sync, archive_in_notion
+from notion_sync import (
+    sync_from_notion, push_to_notion, update_in_notion, preview_sync, archive_in_notion,
+    push_set_to_notion, update_set_in_notion, archive_set_in_notion,
+    push_set_track_to_notion, update_set_track_position_in_notion, archive_set_track_in_notion,
+    sync_sets_from_notion,
+)
 from spotify import lookup_spotify_track
 from vocabulary import FULL_WIKI
 from llm import suggest_tags
@@ -31,6 +36,7 @@ async def lifespan(app: FastAPI):
         db = await get_db()
         try:
             await sync_from_notion(db)
+            await sync_sets_from_notion(db)
         except Exception:
             pass  # don't block startup if Notion is unreachable
         finally:
@@ -294,9 +300,12 @@ async def list_sets():
 
 @app.post("/sets", status_code=201)
 async def create_set(body: SetCreate):
+    notion_id = await push_set_to_notion(body.name)
     db = await get_db()
     try:
-        cursor = await db.execute("INSERT INTO sets (name) VALUES (?)", [body.name])
+        cursor = await db.execute(
+            "INSERT INTO sets (notion_id, name) VALUES (?, ?)", [notion_id, body.name]
+        )
         await db.commit()
         c = await db.execute("SELECT * FROM sets WHERE id = ?", [cursor.lastrowid])
         return dict(await c.fetchone())
@@ -308,13 +317,16 @@ async def create_set(body: SetCreate):
 async def rename_set(set_id: int, body: SetUpdate):
     db = await get_db()
     try:
-        await db.execute("UPDATE sets SET name = ? WHERE id = ?", [body.name, set_id])
-        await db.commit()
-        c = await db.execute("SELECT * FROM sets WHERE id = ?", [set_id])
+        c = await db.execute("SELECT notion_id FROM sets WHERE id = ?", [set_id])
         row = await c.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Set not found")
-        return dict(row)
+        await db.execute("UPDATE sets SET name = ? WHERE id = ?", [body.name, set_id])
+        await db.commit()
+        if row["notion_id"]:
+            await update_set_in_notion(row["notion_id"], body.name)
+        c = await db.execute("SELECT * FROM sets WHERE id = ?", [set_id])
+        return dict(await c.fetchone())
     finally:
         await db.close()
 
@@ -323,8 +335,18 @@ async def rename_set(set_id: int, body: SetUpdate):
 async def delete_set(set_id: int):
     db = await get_db()
     try:
+        c = await db.execute("SELECT notion_id FROM sets WHERE id = ?", [set_id])
+        set_row = await c.fetchone()
+        # Archive all set_track pages in Notion before deleting
+        c = await db.execute(
+            "SELECT notion_id FROM set_tracks WHERE set_id = ? AND notion_id IS NOT NULL", [set_id]
+        )
+        for row in await c.fetchall():
+            await archive_set_track_in_notion(row["notion_id"])
         await db.execute("DELETE FROM sets WHERE id = ?", [set_id])
         await db.commit()
+        if set_row and set_row["notion_id"]:
+            await archive_set_in_notion(set_row["notion_id"])
     finally:
         await db.close()
 
@@ -375,9 +397,22 @@ async def add_track_to_set(set_id: int, body: SetTrackAdd):
             "SELECT COALESCE(MAX(position), 0) + 1 FROM set_tracks WHERE set_id = ?", [set_id]
         )
         next_pos = (await c.fetchone())[0]
+        # Fetch set and track notion_ids for Notion push
+        c = await db.execute("SELECT notion_id FROM sets WHERE id = ?", [set_id])
+        set_row = await c.fetchone()
+        c = await db.execute("SELECT notion_id, name FROM tracks WHERE id = ?", [body.track_id])
+        track_row = await c.fetchone()
+        st_notion_id = None
+        if set_row and set_row["notion_id"] and track_row:
+            st_notion_id = await push_set_track_to_notion(
+                set_row["notion_id"],
+                track_row["notion_id"],
+                next_pos,
+                track_row["name"],
+            )
         cursor = await db.execute(
-            "INSERT INTO set_tracks (set_id, track_id, position) VALUES (?, ?, ?)",
-            [set_id, body.track_id, next_pos],
+            "INSERT INTO set_tracks (notion_id, set_id, track_id, position) VALUES (?, ?, ?, ?)",
+            [st_notion_id, set_id, body.track_id, next_pos],
         )
         await db.commit()
         return {"id": cursor.lastrowid, "set_id": set_id, "track_id": body.track_id, "position": next_pos}
@@ -395,6 +430,13 @@ async def reorder_set_tracks(set_id: int, body: SetTrackOrder):
                 [i, set_track_id, set_id],
             )
         await db.commit()
+        # Push position updates to Notion
+        c = await db.execute(
+            "SELECT id, notion_id, position FROM set_tracks WHERE set_id = ? AND notion_id IS NOT NULL",
+            [set_id],
+        )
+        for row in await c.fetchall():
+            await update_set_track_position_in_notion(row["notion_id"], row["position"])
         return {"ok": True}
     finally:
         await db.close()
@@ -404,6 +446,10 @@ async def reorder_set_tracks(set_id: int, body: SetTrackOrder):
 async def remove_from_set(set_id: int, set_track_id: int):
     db = await get_db()
     try:
+        c = await db.execute(
+            "SELECT notion_id FROM set_tracks WHERE id = ? AND set_id = ?", [set_track_id, set_id]
+        )
+        st_row = await c.fetchone()
         await db.execute(
             "DELETE FROM set_tracks WHERE id = ? AND set_id = ?", [set_track_id, set_id]
         )
@@ -414,6 +460,8 @@ async def remove_from_set(set_id: int, set_track_id: int):
         for i, row in enumerate(rows, 1):
             await db.execute("UPDATE set_tracks SET position = ? WHERE id = ?", [i, row["id"]])
         await db.commit()
+        if st_row and st_row["notion_id"]:
+            await archive_set_track_in_notion(st_row["notion_id"])
     finally:
         await db.close()
 

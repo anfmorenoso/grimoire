@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS tracks (
 CREATE_SETS_TABLE = """
 CREATE TABLE IF NOT EXISTS sets (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    notion_id  TEXT UNIQUE,
     name       TEXT NOT NULL,
     created_at INTEGER DEFAULT (unixepoch())
 )
@@ -40,10 +41,11 @@ CREATE TABLE IF NOT EXISTS sets (
 
 CREATE_SET_TRACKS_TABLE = """
 CREATE TABLE IF NOT EXISTS set_tracks (
-    id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    set_id   INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
-    track_id INTEGER REFERENCES tracks(id) ON DELETE SET NULL,
-    position INTEGER NOT NULL
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    notion_id TEXT UNIQUE,
+    set_id    INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
+    track_id  INTEGER REFERENCES tracks(id) ON DELETE SET NULL,
+    position  INTEGER NOT NULL
 )
 """
 
@@ -67,6 +69,8 @@ async def init_db():
             "ALTER TABLE tracks ADD COLUMN hq_download INTEGER DEFAULT 0",
             "ALTER TABLE tracks ADD COLUMN created_at INTEGER",
             "ALTER TABLE tracks ADD COLUMN notion_updated_at TEXT",
+            "ALTER TABLE sets ADD COLUMN notion_id TEXT",
+            "ALTER TABLE set_tracks ADD COLUMN notion_id TEXT",
         ]:
             try:
                 await db.execute(col_sql)
