@@ -42,7 +42,7 @@ function TagChip({
 }
 
 export default function TrackCard({ track, wiki, onClick, onTagClick, onLongPress }: Props) {
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const longFiredRef = useRef(false);
 
   const startLongPress = () => {
