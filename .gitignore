@@ -31,3 +31,7 @@ dist-ssr/
 
 # Logs
 *.log
+
+# Scripts data (local XML exports, sync checkpoints)
+scripts/data/
+scripts/sync_progress.json
