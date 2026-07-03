@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { Track } from "../api";
 import type { Wiki } from "../vocabulary";
 import type { ActiveFilter } from "../filters";
@@ -7,6 +8,7 @@ interface Props {
   wiki: Wiki;
   onClick: () => void;
   onTagClick?: (type: keyof ActiveFilter, key: string) => void;
+  onLongPress?: () => void;
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -39,7 +41,22 @@ function TagChip({
   return <span className={className}>{children}</span>;
 }
 
-export default function TrackCard({ track, wiki, onClick, onTagClick }: Props) {
+export default function TrackCard({ track, wiki, onClick, onTagClick, onLongPress }: Props) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const longFiredRef = useRef(false);
+
+  const startLongPress = () => {
+    longFiredRef.current = false;
+    timerRef.current = setTimeout(() => {
+      longFiredRef.current = true;
+      onLongPress?.();
+    }, 500);
+  };
+  const cancelLongPress = () => clearTimeout(timerRef.current);
+  const handleClick = () => {
+    if (longFiredRef.current) { longFiredRef.current = false; return; }
+    onClick();
+  };
   const roleEntry = wiki.role_set.find((e) => e.key === track.role_set);
   const grainEntry = wiki.grain.find((e) => e.key === track.grain);
   const massEntry = wiki.masse_basse.find((e) => e.key === track.masse_basse);
@@ -49,8 +66,12 @@ export default function TrackCard({ track, wiki, onClick, onTagClick }: Props) {
 
   return (
     <div
-      onClick={onClick}
-      className="w-full text-left bg-card border border-border rounded-xl p-4 space-y-2 active:scale-[0.98] transition-transform cursor-pointer"
+      onClick={handleClick}
+      onTouchStart={onLongPress ? startLongPress : undefined}
+      onTouchEnd={onLongPress ? cancelLongPress : undefined}
+      onTouchMove={onLongPress ? cancelLongPress : undefined}
+      onContextMenu={onLongPress ? (e) => { e.preventDefault(); onLongPress(); } : undefined}
+      className="w-full text-left bg-card border border-border rounded-xl p-4 space-y-2 active:scale-[0.98] transition-transform cursor-pointer select-none"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
