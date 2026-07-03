@@ -298,13 +298,13 @@ export default function App() {
         <div className="flex items-center justify-between px-4 py-3">
           <h1 className="text-base font-semibold text-accent">Digg IT 🪏</h1>
           <div className="flex gap-2">
-            <button type="button" onClick={() => setView("wiki")}
-              className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted">
-              Wiki
-            </button>
             <button type="button" onClick={() => setView("sets")}
               className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted">
               Sets
+            </button>
+            <button type="button" onClick={() => setView("wiki")}
+              className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted">
+              Wiki
             </button>
             <button type="button" onClick={handleSync} disabled={syncing}
               className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted disabled:opacity-40">
