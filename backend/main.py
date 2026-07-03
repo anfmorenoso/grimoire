@@ -251,6 +251,34 @@ async def delete_track(track_id: int):
         await db.close()
 
 
+# --- Track stats ---
+
+@app.get("/tracks/stats")
+async def track_stats():
+    db = await get_db()
+    try:
+        stats: dict = {}
+        for col in ("grain", "masse_basse", "role_set"):
+            c = await db.execute(
+                f"SELECT {col}, COUNT(*) FROM tracks WHERE {col} IS NOT NULL GROUP BY {col}"
+            )
+            stats[col] = {row[0]: row[1] for row in await c.fetchall()}
+        c = await db.execute(
+            "SELECT sensations FROM tracks WHERE sensations IS NOT NULL AND sensations != '[]'"
+        )
+        counts: dict = {}
+        for row in await c.fetchall():
+            try:
+                for s in json.loads(row[0]):
+                    counts[s] = counts.get(s, 0) + 1
+            except Exception:
+                pass
+        stats["sensations"] = counts
+        return stats
+    finally:
+        await db.close()
+
+
 # --- Spotify lookup ---
 
 @app.post("/spotify/lookup")
