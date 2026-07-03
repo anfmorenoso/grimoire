@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS tracks (
     hq_download INTEGER DEFAULT 0,
     notes       TEXT,
     layering    TEXT,
+    collection  TEXT,
     synced_at        TEXT,
     notion_updated_at TEXT
 )
@@ -65,6 +66,7 @@ async def init_db():
         await db.execute(CREATE_SET_TRACKS_TABLE)
         for col_sql in [
             "ALTER TABLE tracks ADD COLUMN layering TEXT",
+            "ALTER TABLE tracks ADD COLUMN collection TEXT",
             "ALTER TABLE tracks ADD COLUMN year INTEGER",
             "ALTER TABLE tracks ADD COLUMN hq_download INTEGER DEFAULT 0",
             "ALTER TABLE tracks ADD COLUMN created_at INTEGER",
