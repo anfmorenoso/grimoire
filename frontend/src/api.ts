@@ -80,6 +80,17 @@ export const deleteTrack = (id: number) => api.delete(`/tracks/${id}`);
 export const lookupSpotify = (url: string) =>
   api.post<SpotifyMeta>("/spotify/lookup", { url }).then((r) => r.data);
 
+export interface DJSet {
+  id: number;
+  name: string;
+  created_at: number;
+  track_count: number;
+}
+
+export type SetTrackEntry =
+  | { set_track_id: number; position: number; deleted: true }
+  | ({ set_track_id: number; position: number; deleted?: false } & Track);
+
 export interface AiSuggestion {
   bpm_estimate?: number | null;
   label_suggestions?: string[];
@@ -94,6 +105,20 @@ export interface AiSuggestion {
   layering_note?: string;
   reasoning?: string;
 }
+
+export const getSets = () => api.get<DJSet[]>("/sets").then((r) => r.data);
+export const createSet = (name: string) => api.post<DJSet>("/sets", { name }).then((r) => r.data);
+export const renameSet = (id: number, name: string) =>
+  api.patch<DJSet>(`/sets/${id}`, { name }).then((r) => r.data);
+export const deleteSet = (id: number) => api.delete(`/sets/${id}`);
+export const getSetTracks = (id: number) =>
+  api.get<SetTrackEntry[]>(`/sets/${id}/tracks`).then((r) => r.data);
+export const addTrackToSet = (setId: number, trackId: number, force = false) =>
+  api.post(`/sets/${setId}/tracks`, { track_id: trackId, force }).then((r) => r.data);
+export const removeFromSet = (setId: number, setTrackId: number) =>
+  api.delete(`/sets/${setId}/tracks/${setTrackId}`);
+export const reorderSet = (setId: number, orderedIds: number[]) =>
+  api.put(`/sets/${setId}/tracks/order`, { ordered_ids: orderedIds }).then((r) => r.data);
 
 export const suggestTags = (
   name: string,

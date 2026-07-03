@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Wiki } from "./vocabulary";
-import type { Track } from "./api";
-import type { SyncPreview } from "./api";
+import type { Track, DJSet, SyncPreview } from "./api";
 import { getWiki, getTracks, getLabels, createTrack, updateTrack, deleteTrack, sync, syncPreview } from "./api";
 import type { ActiveFilter, SavedFilter, Sort } from "./filters";
 import { EMPTY_FILTER, DEFAULT_SORT, SORT_LABELS, filterCount, toggleTag } from "./filters";
@@ -9,8 +8,11 @@ import TrackCard from "./components/TrackCard";
 import TrackForm from "./components/TrackForm";
 import WikiPage from "./components/WikiPage";
 import FilterPanel from "./components/FilterPanel";
+import SetContextMenu from "./components/SetContextMenu";
+import SetsPage from "./components/SetsPage";
+import SetDetailPage from "./components/SetDetailPage";
 
-type View = "list" | "add" | "edit" | "wiki";
+type View = "list" | "add" | "edit" | "wiki" | "sets" | "set-detail";
 
 const SAVED_FILTERS_KEY = "grimoire_saved_filters";
 
@@ -33,6 +35,8 @@ export default function App() {
   const [syncing, setSyncing] = useState(false);
   const [preview, setPreview] = useState<SyncPreview | null>(null);
   const [filter, setFilter] = useState<ActiveFilter>(EMPTY_FILTER);
+  const [selectedSet, setSelectedSet] = useState<DJSet | null>(null);
+  const [contextTrack, setContextTrack] = useState<Track | null>(null);
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [filterOpen, setFilterOpen] = useState(false);
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(loadSavedFilters);
@@ -167,6 +171,26 @@ export default function App() {
     return <WikiPage wiki={wiki} onBack={() => setView("list")} />;
   }
 
+  if (view === "sets") {
+    return (
+      <SetsPage
+        onBack={() => setView("list")}
+        onOpenSet={(s) => { setSelectedSet(s); setView("set-detail"); }}
+      />
+    );
+  }
+
+  if (view === "set-detail" && selectedSet) {
+    return (
+      <SetDetailPage
+        set={selectedSet}
+        wiki={wiki}
+        onBack={() => setView("sets")}
+        onSetUpdated={(s) => setSelectedSet(s)}
+      />
+    );
+  }
+
   if (view === "add" || view === "edit") {
     return (
       <div className="flex flex-col h-screen">
@@ -278,6 +302,10 @@ export default function App() {
               className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted">
               Wiki
             </button>
+            <button type="button" onClick={() => setView("sets")}
+              className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted">
+              Sets
+            </button>
             <button type="button" onClick={handleSync} disabled={syncing}
               className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted disabled:opacity-40">
               {syncing ? "Sync..." : "⟳ Sync"}
@@ -331,8 +359,15 @@ export default function App() {
             </div>
           )}
 
+          {/* Results count — shown when filtering or searching */}
+          {(activeCount > 0 || search) && (
+            <span className="text-xs text-muted shrink-0 ml-auto">
+              {tracks.length} résultat{tracks.length !== 1 ? "s" : ""}
+            </span>
+          )}
+
           {/* Sort toggle */}
-          <div className="flex items-center gap-0.5 ml-auto shrink-0">
+          <div className={`flex items-center gap-0.5 shrink-0 ${activeCount > 0 || search ? "" : "ml-auto"}`}>
             <button
               type="button"
               onClick={() => {
@@ -368,6 +403,7 @@ export default function App() {
               wiki={wiki}
               onClick={() => handleEdit(t)}
               onTagClick={handleTagClick}
+              onLongPress={() => setContextTrack(t)}
             />
           ))
         )}
@@ -376,6 +412,13 @@ export default function App() {
       <div className="px-4 py-2 border-t border-border text-xs text-muted text-center">
         {tracks.length} morceaux{activeCount > 0 ? " (filtrés)" : ""}
       </div>
+
+      {contextTrack && (
+        <SetContextMenu
+          track={contextTrack}
+          onClose={() => setContextTrack(null)}
+        />
+      )}
     </div>
   );
 }
