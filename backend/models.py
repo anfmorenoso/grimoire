@@ -57,6 +57,20 @@ class Track(TrackBase):
         from_attributes = True
 
 
+class SetCreate(BaseModel):
+    name: str
+
+class SetUpdate(BaseModel):
+    name: str
+
+class SetTrackAdd(BaseModel):
+    track_id: int
+    force: bool = False
+
+class SetTrackOrder(BaseModel):
+    ordered_ids: list[int]
+
+
 class SpotifyLookupRequest(BaseModel):
     url: str
 

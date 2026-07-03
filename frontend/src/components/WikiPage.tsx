@@ -1,9 +1,13 @@
 import { useState } from "react";
 import type { Wiki } from "../vocabulary";
+import type { TrackStats } from "../api";
+import type { ActiveFilter } from "../filters";
 
 interface Props {
   wiki: Wiki;
+  stats: TrackStats;
   onBack: () => void;
+  onFilterApply: (type: keyof ActiveFilter, key: string) => void;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -13,7 +17,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   role_set: "Rôle Set",
 };
 
-// Matches TrackCard color system
 const ROLE_COLORS: Record<string, string> = {
   amorce: "text-blue-400",
   construction: "text-yellow-400",
@@ -27,7 +30,15 @@ function entryTitleColor(cat: string, key: string): string {
   return "text-gray-200";
 }
 
-export default function WikiPage({ wiki, onBack }: Props) {
+// wiki category key → ActiveFilter key (they match 1:1 here)
+const CAT_TO_FILTER: Record<string, keyof ActiveFilter> = {
+  grain: "grain",
+  sensations: "sensations",
+  masse_basse: "masse_basse",
+  role_set: "role_set",
+};
+
+export default function WikiPage({ wiki, stats, onBack, onFilterApply }: Props) {
   const [long, setLong] = useState(false);
 
   return (
@@ -55,19 +66,32 @@ export default function WikiPage({ wiki, onBack }: Props) {
               {CATEGORY_LABELS[cat]}
             </h2>
             <div className="space-y-3">
-              {wiki[cat].map((entry) => (
-                <div
-                  key={entry.key}
-                  className="bg-card border border-border rounded-xl px-4 py-3 space-y-1"
-                >
-                  <p className={`text-sm font-semibold leading-snug ${entryTitleColor(cat, entry.key)}`}>
-                    {long ? `${entry.label.split(" ")[0]} ${entry.notion_value || entry.label}` : entry.label}
-                  </p>
-                  <p className="text-xs text-gray-400 leading-relaxed">
-                    {entry.description}
-                  </p>
-                </div>
-              ))}
+              {wiki[cat].map((entry) => {
+                const filterType = CAT_TO_FILTER[cat];
+                const count = stats[cat as keyof TrackStats]?.[entry.key] ?? 0;
+                return (
+                  <button
+                    key={entry.key}
+                    type="button"
+                    onClick={() => onFilterApply(filterType, entry.key)}
+                    className="w-full text-left bg-card border border-border rounded-xl px-4 py-3 space-y-1 active:bg-border/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`text-sm font-semibold leading-snug ${entryTitleColor(cat, entry.key)}`}>
+                        {long ? `${entry.label.split(" ")[0]} ${entry.notion_value || entry.label}` : entry.label}
+                      </p>
+                      {count > 0 && (
+                        <span className="text-xs text-muted shrink-0">
+                          {count} morceau{count !== 1 ? "x" : ""}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 leading-relaxed">
+                      {entry.description}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           </section>
         ))}
