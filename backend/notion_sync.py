@@ -77,6 +77,7 @@ def notion_page_to_dict(page: dict) -> dict:
     url_prop = p.get("URL", {})
     downloaded_prop = p.get("Downloaded", {})
     hq_prop = p.get("HQ", {})
+    collection_prop = p.get("Collection", {})
     return {
         "notion_id": page["id"],
         "name": "".join(t["plain_text"] for t in p["Name"]["title"]),
@@ -94,6 +95,7 @@ def notion_page_to_dict(page: dict) -> dict:
         "downloaded": downloaded_prop.get("checkbox", False),
         "hq_download": hq_prop.get("checkbox", False),
         "layering": _text(p.get("Layering", {"rich_text": []})),
+        "collection": collection_prop["select"]["name"] if collection_prop.get("select") else None,
         "synced_at": datetime.now(timezone.utc).isoformat(),
         "notion_updated_at": page.get("last_edited_time"),
     }
@@ -214,9 +216,9 @@ async def sync_from_notion(db: aiosqlite.Connection):
             await db.execute(
                 """
                 INSERT INTO tracks (notion_id, name, artist, album, label, year, bpm, key,
-                    grain, sensations, masse_basse, role_set, url, downloaded, hq_download, layering, synced_at, notion_updated_at)
+                    grain, sensations, masse_basse, role_set, url, downloaded, hq_download, layering, collection, synced_at, notion_updated_at)
                 VALUES (:notion_id, :name, :artist, :album, :label, :year, :bpm, :key,
-                    :grain, :sensations, :masse_basse, :role_set, :url, :downloaded, :hq_download, :layering, :synced_at, :notion_updated_at)
+                    :grain, :sensations, :masse_basse, :role_set, :url, :downloaded, :hq_download, :layering, :collection, :synced_at, :notion_updated_at)
                 ON CONFLICT(notion_id) DO UPDATE SET
                     name=excluded.name, artist=excluded.artist, album=excluded.album,
                     label=excluded.label, year=excluded.year, bpm=excluded.bpm, key=excluded.key,
@@ -224,6 +226,7 @@ async def sync_from_notion(db: aiosqlite.Connection):
                     masse_basse=excluded.masse_basse, role_set=excluded.role_set,
                     url=excluded.url, downloaded=excluded.downloaded, hq_download=excluded.hq_download,
                     layering=COALESCE(excluded.layering, tracks.layering),
+                    collection=COALESCE(excluded.collection, tracks.collection),
                     synced_at=excluded.synced_at,
                     notion_updated_at=excluded.notion_updated_at
                 """,
