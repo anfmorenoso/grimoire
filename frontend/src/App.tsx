@@ -31,7 +31,6 @@ export default function App() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [availableLabels, setAvailableLabels] = useState<string[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
-  const [activeCollection, setActiveCollection] = useState<string | null>(null);
   const [view, setView] = useState<View>("list");
   const [selected, setSelected] = useState<Track | null>(null);
   const [search, setSearch] = useState("");
@@ -58,11 +57,10 @@ export default function App() {
     loadTracks();
   }, [filter, sort]);
 
-  const buildQuery = (overrideQ?: string, overrideF?: ActiveFilter, overrideS?: Sort, overrideC?: string | null) => {
+  const buildQuery = (overrideQ?: string, overrideF?: ActiveFilter, overrideS?: Sort) => {
     const q = overrideQ !== undefined ? overrideQ : search;
     const f = overrideF ?? filter;
     const s = overrideS ?? sort;
-    const c = overrideC !== undefined ? overrideC : activeCollection;
     return {
       sort: s.field, dir: s.dir,
       ...(q ? { q } : {}),
@@ -71,18 +69,12 @@ export default function App() {
       ...(f.role_set.length ? { role_set: f.role_set } : {}),
       ...(f.sensations.length ? { sensation: f.sensations } : {}),
       ...(f.label.length ? { label: f.label } : {}),
-      ...(c ? { collection: [c] } : {}),
+      ...(f.collection.length ? { collection: f.collection } : {}),
     };
   };
 
-  const loadTracks = (overrideQ?: string, overrideF?: ActiveFilter, overrideS?: Sort, overrideC?: string | null) =>
-    getTracks(buildQuery(overrideQ, overrideF, overrideS, overrideC)).then(setTracks);
-
-  const handleCollectionClick = (coll: string) => {
-    const next = activeCollection === coll ? null : coll;
-    setActiveCollection(next);
-    loadTracks(undefined, undefined, undefined, next);
-  };
+  const loadTracks = (overrideQ?: string, overrideF?: ActiveFilter, overrideS?: Sort) =>
+    getTracks(buildQuery(overrideQ, overrideF, overrideS)).then(setTracks);
 
   const handleFilterChange = (newFilter: ActiveFilter) => {
     setFilter(newFilter);
@@ -309,6 +301,7 @@ export default function App() {
           sort={sort}
           savedFilters={savedFilters}
           availableLabels={availableLabels}
+          collections={collections}
           onFilterChange={handleFilterChange}
           onSortChange={handleSortChange}
           onSaveFilter={handleSaveFilter}
@@ -350,31 +343,6 @@ export default function App() {
             onChange={(e) => handleSearch(e.target.value)}
           />
         </div>
-
-        {/* Collection row */}
-        {collections.length > 0 && (
-          <div className="flex gap-2 px-4 pb-2 overflow-x-auto scrollbar-hide">
-            {collections.map(({ collection, count }) => {
-              const label = collection.includes(" > ") ? collection.split(" > ").pop()! : collection;
-              const active = activeCollection === collection;
-              return (
-                <button
-                  key={collection}
-                  type="button"
-                  onClick={() => handleCollectionClick(collection)}
-                  className={`flex items-center gap-1 text-xs px-3 py-1 rounded-full border whitespace-nowrap shrink-0 transition-colors ${
-                    active
-                      ? "bg-accent text-white border-accent"
-                      : "border-border text-muted"
-                  }`}
-                >
-                  {label}
-                  <span className={active ? "text-white/60" : "text-muted/60"}>{count}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
 
         {/* Filter row */}
         <div className="flex items-center gap-2 px-4 pb-3">

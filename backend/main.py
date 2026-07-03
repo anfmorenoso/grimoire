@@ -90,6 +90,17 @@ async def sync():
         await db.close()
 
 
+HIDDEN_COLLECTIONS: frozenset[str] = frozenset({
+    "All",
+    "Penichemise en lin",
+    "Set 2",
+    "Test 1",
+    "Something else",
+    "VERY ACID",
+    "Kinda Playful",
+})
+
+
 # --- Collections ---
 
 @app.get("/collections")
@@ -100,7 +111,10 @@ async def list_collections():
             "SELECT collection, COUNT(*) count FROM tracks WHERE collection IS NOT NULL GROUP BY collection ORDER BY count DESC"
         )
         rows = await cursor.fetchall()
-        return [{"collection": row[0], "count": row[1]} for row in rows]
+        return [
+            {"collection": row[0], "count": row[1], "hidden": row[0] in HIDDEN_COLLECTIONS}
+            for row in rows
+        ]
     finally:
         await db.close()
 
@@ -142,6 +156,10 @@ async def list_tracks(
         if collection:
             conditions.append(f"collection IN ({','.join('?' * len(collection))})")
             params.extend(collection)
+        else:
+            placeholders = ",".join("?" * len(HIDDEN_COLLECTIONS))
+            conditions.append(f"(collection IS NULL OR collection NOT IN ({placeholders}))")
+            params.extend(HIDDEN_COLLECTIONS)
         if grain:
             conditions.append(f"grain IN ({','.join('?' * len(grain))})")
             params.extend(grain)

@@ -58,6 +58,7 @@ export interface SyncPreview {
 export interface Collection {
   collection: string;
   count: number;
+  hidden: boolean;
 }
 
 export interface TrackFilter {
