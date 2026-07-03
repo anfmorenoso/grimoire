@@ -23,6 +23,8 @@ import aiosqlite
 DEFAULT_XML = Path(__file__).parent / "data" / "collection.xml"
 DB_PATH = Path(__file__).parent.parent / "backend" / "grimoire.db"
 HQ_MARKER = "Good quality files"
+SKIP_ARTISTS = {"rekordbox", "felipax", "rebik"}  # own mixes / loop samples
+SKIP_GENRES  = {"loop samples"}
 # ───────────────────────────────────────────────────────────────────────────────
 
 
@@ -72,11 +74,17 @@ def parse_xml(xml_path) -> list[dict]:
 
     tracks = []
     for t in collection.findall("TRACK"):
-        name = t.get("Name", "").strip()
+        name   = t.get("Name", "").strip()
+        artist = t.get("Artist", "").strip()
+        genre  = t.get("Genre", "").strip()
         if not name:
+            continue
+        if artist.lower() in SKIP_ARTISTS or genre.lower() in SKIP_GENRES:
             continue
 
         location = decode_location(t.get("Location", ""))
+        if location.startswith("soundcloud:"):
+            continue
         hq = HQ_MARKER.lower() in location.lower()
 
         bpm_raw = t.get("AverageBpm")  # AverageBpm is the analysed value
@@ -96,7 +104,7 @@ def parse_xml(xml_path) -> list[dict]:
 
         tracks.append({
             "name": name,
-            "artist": t.get("Artist", "").strip(),
+            "artist": artist,
             "album": t.get("Album") or None,
             "label": t.get("Label") or None,
             "genre": t.get("Genre") or None,
