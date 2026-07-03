@@ -55,6 +55,11 @@ export interface SyncPreview {
   updated: Array<{ name: string; artist: string }>;
 }
 
+export interface Collection {
+  collection: string;
+  count: number;
+}
+
 export interface TrackFilter {
   q?: string;
   grain?: string[];
@@ -62,6 +67,7 @@ export interface TrackFilter {
   role_set?: string[];
   sensation?: string[];
   label?: string[];
+  collection?: string[];
   sort?: SortField;
   dir?: SortDir;
 }
@@ -76,6 +82,7 @@ export interface TrackStats {
 export const getWiki = () => api.get<Wiki>("/wiki").then((r) => r.data);
 export const getTrackStats = () => api.get<TrackStats>("/tracks/stats").then((r) => r.data);
 export const getLabels = () => api.get<string[]>("/labels").then((r) => r.data);
+export const getCollections = () => api.get<Collection[]>("/collections").then((r) => r.data);
 export const syncPreview = () => api.get<SyncPreview>("/sync/preview").then((r) => r.data);
 export const sync = () => api.post<{ synced: number }>("/sync").then((r) => r.data);
 export const getTracks = (params?: TrackFilter) =>

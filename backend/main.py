@@ -90,6 +90,21 @@ async def sync():
         await db.close()
 
 
+# --- Collections ---
+
+@app.get("/collections")
+async def list_collections():
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT collection, COUNT(*) count FROM tracks WHERE collection IS NOT NULL GROUP BY collection ORDER BY count DESC"
+        )
+        rows = await cursor.fetchall()
+        return [{"collection": row[0], "count": row[1]} for row in rows]
+    finally:
+        await db.close()
+
+
 # --- Labels ---
 
 @app.get("/labels")
@@ -114,6 +129,7 @@ async def list_tracks(
     role_set: List[str] = Query(default=[]),
     sensation: List[str] = Query(default=[]),
     label: List[str] = Query(default=[]),
+    collection: List[str] = Query(default=[]),
     q: Optional[str] = None,
     sort: str = "id",
     dir: str = "desc",
@@ -123,6 +139,9 @@ async def list_tracks(
         conditions = []
         params: list = []
 
+        if collection:
+            conditions.append(f"collection IN ({','.join('?' * len(collection))})")
+            params.extend(collection)
         if grain:
             conditions.append(f"grain IN ({','.join('?' * len(grain))})")
             params.extend(grain)

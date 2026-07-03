@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Wiki } from "./vocabulary";
 import type { Track, DJSet, SyncPreview, TrackStats } from "./api";
-import { getWiki, getTracks, getLabels, getTrackStats, createTrack, updateTrack, deleteTrack, sync, syncPreview } from "./api";
+import { getWiki, getTracks, getLabels, getTrackStats, getCollections, createTrack, updateTrack, deleteTrack, sync, syncPreview } from "./api";
+import type { Collection } from "./api";
 import type { ActiveFilter, SavedFilter, Sort } from "./filters";
 import { EMPTY_FILTER, DEFAULT_SORT, SORT_LABELS, filterCount, toggleTag } from "./filters";
 import TrackCard from "./components/TrackCard";
@@ -29,6 +30,8 @@ export default function App() {
   const [wiki, setWiki] = useState<Wiki | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [availableLabels, setAvailableLabels] = useState<string[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [activeCollection, setActiveCollection] = useState<string | null>(null);
   const [view, setView] = useState<View>("list");
   const [selected, setSelected] = useState<Track | null>(null);
   const [search, setSearch] = useState("");
@@ -46,6 +49,7 @@ export default function App() {
     getWiki().then(setWiki);
     getLabels().then(setAvailableLabels);
     getTrackStats().then(setTrackStats);
+    getCollections().then(setCollections);
     loadTracks();
   }, []);
 
@@ -54,10 +58,11 @@ export default function App() {
     loadTracks();
   }, [filter, sort]);
 
-  const buildQuery = (overrideQ?: string, overrideF?: ActiveFilter, overrideS?: Sort) => {
+  const buildQuery = (overrideQ?: string, overrideF?: ActiveFilter, overrideS?: Sort, overrideC?: string | null) => {
     const q = overrideQ !== undefined ? overrideQ : search;
     const f = overrideF ?? filter;
     const s = overrideS ?? sort;
+    const c = overrideC !== undefined ? overrideC : activeCollection;
     return {
       sort: s.field, dir: s.dir,
       ...(q ? { q } : {}),
@@ -66,11 +71,18 @@ export default function App() {
       ...(f.role_set.length ? { role_set: f.role_set } : {}),
       ...(f.sensations.length ? { sensation: f.sensations } : {}),
       ...(f.label.length ? { label: f.label } : {}),
+      ...(c ? { collection: [c] } : {}),
     };
   };
 
-  const loadTracks = (overrideQ?: string, overrideF?: ActiveFilter, overrideS?: Sort) =>
-    getTracks(buildQuery(overrideQ, overrideF, overrideS)).then(setTracks);
+  const loadTracks = (overrideQ?: string, overrideF?: ActiveFilter, overrideS?: Sort, overrideC?: string | null) =>
+    getTracks(buildQuery(overrideQ, overrideF, overrideS, overrideC)).then(setTracks);
+
+  const handleCollectionClick = (coll: string) => {
+    const next = activeCollection === coll ? null : coll;
+    setActiveCollection(next);
+    loadTracks(undefined, undefined, undefined, next);
+  };
 
   const handleFilterChange = (newFilter: ActiveFilter) => {
     setFilter(newFilter);
@@ -154,8 +166,8 @@ export default function App() {
   };
 
   const getTagLabel = (type: keyof ActiveFilter, key: string): string => {
-    if (type === "label") return key;
-    const map: Record<Exclude<keyof ActiveFilter, "label">, keyof Wiki> = {
+    if (type === "label" || type === "collection") return key;
+    const map: Record<Exclude<keyof ActiveFilter, "label" | "collection">, keyof Wiki> = {
       grain: "grain", sensations: "sensations", masse_basse: "masse_basse", role_set: "role_set",
     };
     return wiki![map[type]].find((e) => e.key === key)?.label ?? key;
@@ -338,6 +350,31 @@ export default function App() {
             onChange={(e) => handleSearch(e.target.value)}
           />
         </div>
+
+        {/* Collection row */}
+        {collections.length > 0 && (
+          <div className="flex gap-2 px-4 pb-2 overflow-x-auto scrollbar-hide">
+            {collections.map(({ collection, count }) => {
+              const label = collection.includes(" > ") ? collection.split(" > ").pop()! : collection;
+              const active = activeCollection === collection;
+              return (
+                <button
+                  key={collection}
+                  type="button"
+                  onClick={() => handleCollectionClick(collection)}
+                  className={`flex items-center gap-1 text-xs px-3 py-1 rounded-full border whitespace-nowrap shrink-0 transition-colors ${
+                    active
+                      ? "bg-accent text-white border-accent"
+                      : "border-border text-muted"
+                  }`}
+                >
+                  {label}
+                  <span className={active ? "text-white/60" : "text-muted/60"}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Filter row */}
         <div className="flex items-center gap-2 px-4 pb-3">

@@ -43,7 +43,7 @@ export default function FilterPanel({
   };
 
   const loadPreset = (sf: SavedFilter) =>
-    onFilterChange({ grain: sf.grain, sensations: sf.sensations, masse_basse: sf.masse_basse, role_set: sf.role_set, label: sf.label ?? [] });
+    onFilterChange({ grain: sf.grain, sensations: sf.sensations, masse_basse: sf.masse_basse, role_set: sf.role_set, label: sf.label ?? [], collection: sf.collection ?? [] });
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/60" onClick={onClose}>
