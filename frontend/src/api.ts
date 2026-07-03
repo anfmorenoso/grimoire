@@ -66,7 +66,15 @@ export interface TrackFilter {
   dir?: SortDir;
 }
 
+export interface TrackStats {
+  grain: Record<string, number>;
+  sensations: Record<string, number>;
+  masse_basse: Record<string, number>;
+  role_set: Record<string, number>;
+}
+
 export const getWiki = () => api.get<Wiki>("/wiki").then((r) => r.data);
+export const getTrackStats = () => api.get<TrackStats>("/tracks/stats").then((r) => r.data);
 export const getLabels = () => api.get<string[]>("/labels").then((r) => r.data);
 export const syncPreview = () => api.get<SyncPreview>("/sync/preview").then((r) => r.data);
 export const sync = () => api.post<{ synced: number }>("/sync").then((r) => r.data);

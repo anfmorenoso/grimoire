@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Wiki } from "./vocabulary";
-import type { Track, DJSet, SyncPreview } from "./api";
-import { getWiki, getTracks, getLabels, createTrack, updateTrack, deleteTrack, sync, syncPreview } from "./api";
+import type { Track, DJSet, SyncPreview, TrackStats } from "./api";
+import { getWiki, getTracks, getLabels, getTrackStats, createTrack, updateTrack, deleteTrack, sync, syncPreview } from "./api";
 import type { ActiveFilter, SavedFilter, Sort } from "./filters";
 import { EMPTY_FILTER, DEFAULT_SORT, SORT_LABELS, filterCount, toggleTag } from "./filters";
 import TrackCard from "./components/TrackCard";
@@ -40,10 +40,12 @@ export default function App() {
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [filterOpen, setFilterOpen] = useState(false);
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(loadSavedFilters);
+  const [trackStats, setTrackStats] = useState<TrackStats>({ grain: {}, sensations: {}, masse_basse: {}, role_set: {} });
 
   useEffect(() => {
     getWiki().then(setWiki);
     getLabels().then(setAvailableLabels);
+    getTrackStats().then(setTrackStats);
     loadTracks();
   }, []);
 
@@ -168,7 +170,17 @@ export default function App() {
   }
 
   if (view === "wiki") {
-    return <WikiPage wiki={wiki} onBack={() => setView("list")} />;
+    return (
+      <WikiPage
+        wiki={wiki}
+        stats={trackStats}
+        onBack={() => setView("list")}
+        onFilterApply={(type, key) => {
+          handleFilterChange({ ...EMPTY_FILTER, [type]: [key] });
+          setView("list");
+        }}
+      />
+    );
   }
 
   if (view === "sets") {
