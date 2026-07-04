@@ -137,6 +137,8 @@ def dict_to_notion_properties(data: dict) -> dict:
         props["Downloaded"] = {"checkbox": bool(data["downloaded"])}
     if "hq_download" in data:
         props["HQ"] = {"checkbox": bool(data["hq_download"])}
+    if "collection" in data:
+        props["Collection"] = {"select": {"name": data["collection"]}} if data["collection"] else {"select": None}
     if "layering" in data and data["layering"]:
         props["Layering"] = {"rich_text": [{"text": {"content": data["layering"]}}]}
 
