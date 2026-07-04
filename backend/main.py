@@ -98,6 +98,8 @@ HIDDEN_COLLECTIONS: frozenset[str] = frozenset({
     "Something else",
     "VERY ACID",
     "Kinda Playful",
+    "Hard Bounce",
+    "Mid Bounce",
 })
 
 
