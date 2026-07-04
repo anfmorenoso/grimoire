@@ -37,6 +37,7 @@ export interface Track {
   hq_download: boolean;
   notes?: string;
   layering?: string;
+  collection?: string;
 }
 
 export interface SpotifyMeta {

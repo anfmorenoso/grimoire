@@ -24,6 +24,7 @@ class TrackBase(BaseModel):
     hq_download: bool = False
     notes: Optional[str] = None
     layering: Optional[str] = None
+    collection: Optional[str] = None
 
 
 class TrackCreate(TrackBase):
@@ -47,6 +48,7 @@ class TrackUpdate(BaseModel):
     hq_download: Optional[bool] = None
     notes: Optional[str] = None
     layering: Optional[str] = None
+    collection: Optional[str] = None
 
 
 class Track(TrackBase):

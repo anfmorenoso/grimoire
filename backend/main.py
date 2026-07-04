@@ -156,8 +156,15 @@ async def list_tracks(
         params: list = []
 
         if collection:
-            conditions.append(f"collection IN ({','.join('?' * len(collection))})")
-            params.extend(collection)
+            named = [c for c in collection if c != "__none__"]
+            want_null = "__none__" in collection
+            parts = []
+            if want_null:
+                parts.append("collection IS NULL")
+            if named:
+                parts.append(f"collection IN ({','.join('?' * len(named))})")
+                params.extend(named)
+            conditions.append(f"({' OR '.join(parts)})")
         else:
             placeholders = ",".join("?" * len(HIDDEN_COLLECTIONS))
             conditions.append(f"(collection IS NULL OR collection NOT IN ({placeholders}))")
@@ -242,14 +249,15 @@ async def create_track(body: TrackCreate):
         cursor = await db.execute(
             """INSERT INTO tracks (notion_id, name, artist, album, label, year, bpm, key,
                grain, sensations, masse_basse, role_set, url, downloaded, hq_download, notes, layering,
-               notion_updated_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               collection, notion_updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 notion_id, data["name"], data["artist"], data["album"],
                 data["label"], data.get("year"), data["bpm"], data["key"], data["grain"],
                 json.dumps(data["sensations"], ensure_ascii=False), data["masse_basse"],
                 data["role_set"], data["url"], int(data["downloaded"]),
                 int(data.get("hq_download", False)), data["notes"], data.get("layering"),
+                data.get("collection"),
                 datetime.now(timezone.utc).isoformat(),
             ),
         )

@@ -149,6 +149,14 @@ export default function FilterPanel({
             <div className="space-y-2">
               <h3 className="text-xs font-semibold uppercase tracking-widest text-muted">Collection</h3>
               <div className="flex flex-wrap gap-2">
+                <button type="button"
+                  onClick={() => onFilterChange(toggleTag(filter, "collection", "__none__"))}
+                  className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                    filter.collection.includes("__none__") ? "bg-accent text-white border-accent" : "bg-card text-gray-300 border-border"
+                  }`}
+                >
+                  Sans collection
+                </button>
                 {collections.filter(c => !c.hidden).map(({ collection, count }) => {
                   const label = collection.includes(" > ") ? collection.split(" > ").pop()! : collection;
                   const active = filter.collection.includes(collection);

@@ -1,12 +1,12 @@
 import { useState } from "react";
 import type { Wiki } from "../vocabulary";
-import type { Track, SpotifyMeta, AiSuggestion } from "../api";
+import type { Track, SpotifyMeta, AiSuggestion, Collection } from "../api";
 import { lookupSpotify, suggestTags, getTracks } from "../api";
 import TagGroup from "./TagGroup";
 
 interface Props {
-
   wiki: Wiki;
+  collections?: Collection[];
   initial?: Partial<Track>;
   mode?: "add" | "edit";
   onSave: (data: Partial<Track>) => Promise<void>;
@@ -29,11 +29,12 @@ function hasUserTags(form: Partial<Track>): boolean {
   return !!(form.grain || (form.sensations?.length ?? 0) > 0 || form.masse_basse || form.role_set);
 }
 
-export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, onCancel, onDelete, onOpenTrack }: Props) {
+export default function TrackForm({ wiki, collections = [], initial = {}, mode = "add", onSave, onCancel, onDelete, onOpenTrack }: Props) {
   const [form, setForm] = useState<Partial<Track>>({
     name: "", artist: "", album: "", label: "", year: undefined, bpm: undefined,
     key: "", grain: "", sensations: [], masse_basse: "", role_set: "",
     url: "", downloaded: false, hq_download: false, notes: "", layering: "",
+    collection: undefined,
     ...initial,
   });
 
@@ -384,6 +385,32 @@ export default function TrackForm({ wiki, initial = {}, mode = "add", onSave, on
         <textarea className={`${input} resize-none h-20`} placeholder="Notes libres..."
           value={form.notes || ""} onChange={(e) => set("notes", e.target.value)} />
       </div>
+
+      {/* Collection */}
+      {collections.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted">Collection</h3>
+          <select
+            className={`${input} bg-card`}
+            value={form.collection || ""}
+            onChange={(e) => set("collection", e.target.value || undefined)}
+          >
+            <option value="">— Aucune —</option>
+            {collections.filter(c => !c.hidden).map(({ collection }) => (
+              <option key={collection} value={collection}>
+                {collection.includes(" > ") ? collection.split(" > ").pop() : collection}
+              </option>
+            ))}
+            {collections.some(c => c.hidden) && (
+              <optgroup label="Cachées">
+                {collections.filter(c => c.hidden).map(({ collection }) => (
+                  <option key={collection} value={collection}>{collection}</option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+        </div>
+      )}
 
       {/* Delete confirmation modal */}
       {confirmDelete && (

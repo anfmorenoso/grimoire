@@ -158,7 +158,8 @@ export default function App() {
   };
 
   const getTagLabel = (type: keyof ActiveFilter, key: string): string => {
-    if (type === "label" || type === "collection") return key;
+    if (type === "collection") return key === "__none__" ? "Sans collection" : key;
+    if (type === "label") return key;
     const map: Record<Exclude<keyof ActiveFilter, "label" | "collection">, keyof Wiki> = {
       grain: "grain", sensations: "sensations", masse_basse: "masse_basse", role_set: "role_set",
     };
@@ -226,6 +227,7 @@ export default function App() {
           <TrackForm
             key={selected?.id ?? "new"}
             wiki={wiki}
+            collections={collections}
             initial={selected || {}}
             mode={view === "edit" ? "edit" : "add"}
             onSave={handleSave}
