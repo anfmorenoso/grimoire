@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Wiki } from "../vocabulary";
+import type { Collection } from "../api";
 import type { ActiveFilter, SavedFilter, Sort, SortField } from "../filters";
 import { DEFAULT_PRESETS, EMPTY_FILTER, SORT_LABELS, filterIsEmpty, toggleTag } from "../filters";
 
@@ -9,6 +10,7 @@ interface Props {
   sort: Sort;
   savedFilters: SavedFilter[];
   availableLabels: string[];
+  collections: Collection[];
   onFilterChange: (f: ActiveFilter) => void;
   onSortChange: (s: Sort) => void;
   onSaveFilter: (name: string) => void;
@@ -31,7 +33,7 @@ const SECTIONS: Array<{ key: keyof ActiveFilter; wikiKey: keyof Wiki; label: str
 ];
 
 export default function FilterPanel({
-  wiki, filter, sort, savedFilters, availableLabels,
+  wiki, filter, sort, savedFilters, availableLabels, collections,
   onFilterChange, onSortChange, onSaveFilter, onDeleteSaved, onClose,
 }: Props) {
   const [saveName, setSaveName] = useState("");
@@ -43,7 +45,7 @@ export default function FilterPanel({
   };
 
   const loadPreset = (sf: SavedFilter) =>
-    onFilterChange({ grain: sf.grain, sensations: sf.sensations, masse_basse: sf.masse_basse, role_set: sf.role_set, label: sf.label ?? [] });
+    onFilterChange({ grain: sf.grain, sensations: sf.sensations, masse_basse: sf.masse_basse, role_set: sf.role_set, label: sf.label ?? [], collection: sf.collection ?? [] });
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/60" onClick={onClose}>
@@ -141,6 +143,54 @@ export default function FilterPanel({
               </div>
             </div>
           ))}
+
+          {/* Collections */}
+          {collections.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-muted">Collection</h3>
+              <div className="flex flex-wrap gap-2">
+                <button type="button"
+                  onClick={() => onFilterChange(toggleTag(filter, "collection", "__none__"))}
+                  className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                    filter.collection.includes("__none__") ? "bg-accent text-white border-accent" : "bg-card text-gray-300 border-border"
+                  }`}
+                >
+                  Sans collection
+                </button>
+                {collections.filter(c => !c.hidden).map(({ collection, count }) => {
+                  const label = collection.includes(" > ") ? collection.split(" > ").pop()! : collection;
+                  const active = filter.collection.includes(collection);
+                  return (
+                    <button key={collection} type="button"
+                      onClick={() => onFilterChange(toggleTag(filter, "collection", collection))}
+                      className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                        active ? "bg-accent text-white border-accent" : "bg-card text-gray-300 border-border"
+                      }`}
+                    >
+                      {label} <span className="opacity-50">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {collections.some(c => c.hidden) && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {collections.filter(c => c.hidden).map(({ collection, count }) => {
+                    const active = filter.collection.includes(collection);
+                    return (
+                      <button key={collection} type="button"
+                        onClick={() => onFilterChange(toggleTag(filter, "collection", collection))}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                          active ? "bg-accent/20 text-accent border-accent/40" : "bg-card text-muted border-border/50 opacity-50"
+                        }`}
+                      >
+                        {collection} <span className="opacity-50">{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Labels */}
           {availableLabels.length > 0 && (

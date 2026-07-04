@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Wiki } from "./vocabulary";
 import type { Track, DJSet, SyncPreview, TrackStats } from "./api";
-import { getWiki, getTracks, getLabels, getTrackStats, createTrack, updateTrack, deleteTrack, sync, syncPreview } from "./api";
+import { getWiki, getTracks, getLabels, getTrackStats, getCollections, createTrack, updateTrack, deleteTrack, sync, syncPreview } from "./api";
+import type { Collection } from "./api";
 import type { ActiveFilter, SavedFilter, Sort } from "./filters";
 import { EMPTY_FILTER, DEFAULT_SORT, SORT_LABELS, filterCount, toggleTag } from "./filters";
 import TrackCard from "./components/TrackCard";
@@ -29,6 +30,7 @@ export default function App() {
   const [wiki, setWiki] = useState<Wiki | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [availableLabels, setAvailableLabels] = useState<string[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [view, setView] = useState<View>("list");
   const [selected, setSelected] = useState<Track | null>(null);
   const [search, setSearch] = useState("");
@@ -46,6 +48,7 @@ export default function App() {
     getWiki().then(setWiki);
     getLabels().then(setAvailableLabels);
     getTrackStats().then(setTrackStats);
+    getCollections().then(setCollections);
     loadTracks();
   }, []);
 
@@ -66,6 +69,7 @@ export default function App() {
       ...(f.role_set.length ? { role_set: f.role_set } : {}),
       ...(f.sensations.length ? { sensation: f.sensations } : {}),
       ...(f.label.length ? { label: f.label } : {}),
+      ...(f.collection.length ? { collection: f.collection } : {}),
     };
   };
 
@@ -154,8 +158,9 @@ export default function App() {
   };
 
   const getTagLabel = (type: keyof ActiveFilter, key: string): string => {
+    if (type === "collection") return key === "__none__" ? "Sans collection" : key;
     if (type === "label") return key;
-    const map: Record<Exclude<keyof ActiveFilter, "label">, keyof Wiki> = {
+    const map: Record<Exclude<keyof ActiveFilter, "label" | "collection">, keyof Wiki> = {
       grain: "grain", sensations: "sensations", masse_basse: "masse_basse", role_set: "role_set",
     };
     return wiki![map[type]].find((e) => e.key === key)?.label ?? key;
@@ -222,6 +227,7 @@ export default function App() {
           <TrackForm
             key={selected?.id ?? "new"}
             wiki={wiki}
+            collections={collections}
             initial={selected || {}}
             mode={view === "edit" ? "edit" : "add"}
             onSave={handleSave}
@@ -297,6 +303,7 @@ export default function App() {
           sort={sort}
           savedFilters={savedFilters}
           availableLabels={availableLabels}
+          collections={collections}
           onFilterChange={handleFilterChange}
           onSortChange={handleSortChange}
           onSaveFilter={handleSaveFilter}

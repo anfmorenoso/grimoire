@@ -4,6 +4,7 @@ export interface ActiveFilter {
   masse_basse: string[];
   role_set: string[];
   label: string[];
+  collection: string[];
 }
 
 export interface SavedFilter {
@@ -14,6 +15,7 @@ export interface SavedFilter {
   masse_basse: string[];
   role_set: string[];
   label: string[];
+  collection: string[];
 }
 
 export type SortField = "id" | "name" | "artist";
@@ -24,7 +26,7 @@ export interface Sort {
   dir: SortDir;
 }
 
-export const EMPTY_FILTER: ActiveFilter = { grain: [], sensations: [], masse_basse: [], role_set: [], label: [] };
+export const EMPTY_FILTER: ActiveFilter = { grain: [], sensations: [], masse_basse: [], role_set: [], label: [], collection: [] };
 export const DEFAULT_SORT: Sort = { field: "id", dir: "desc" };
 
 export const SORT_LABELS: Record<SortField, string> = {
@@ -34,7 +36,7 @@ export const SORT_LABELS: Record<SortField, string> = {
 };
 
 export function filterCount(f: ActiveFilter): number {
-  return f.grain.length + f.sensations.length + f.masse_basse.length + f.role_set.length + f.label.length;
+  return f.grain.length + f.sensations.length + f.masse_basse.length + f.role_set.length + f.label.length + f.collection.length;
 }
 
 export function filterIsEmpty(f: ActiveFilter): boolean {
@@ -58,6 +60,7 @@ export const DEFAULT_PRESETS: SavedFilter[] = [
     masse_basse: ["lourd"],
     role_set: ["peak_time"],
     label: [],
+    collection: [],
   },
   {
     id: "preset_ouverture",
@@ -67,5 +70,6 @@ export const DEFAULT_PRESETS: SavedFilter[] = [
     masse_basse: [],
     role_set: ["amorce", "planage"],
     label: [],
+    collection: [],
   },
 ];
