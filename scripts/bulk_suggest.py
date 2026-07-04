@@ -31,7 +31,7 @@ from vocabulary import FULL_WIKI
 DB_PATH    = Path(__file__).parent.parent / "backend" / "grimoire.db"
 CHECKPOINT = Path(__file__).parent / "bulk_suggest_progress.json"
 LOG_FILE   = Path(__file__).parent / "bulk_suggest_log.jsonl"
-DELAY      = 6.5
+DELAY      = 4.5
 BATCH_SIZE = 20
 
 # ── Vocabulary ────────────────────────────────────────────────────────────────
@@ -248,7 +248,7 @@ async def apply_batch(db: aiosqlite.Connection, results: list[dict]):
 async def tag_batch(tracks: list[dict], system_prompt: str) -> list[dict]:
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
+        model_name="gemini-3.1-flash-lite",
         system_instruction=system_prompt,
         generation_config={"response_mime_type": "application/json"},
     )

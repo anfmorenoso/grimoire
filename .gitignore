@@ -32,6 +32,9 @@ dist-ssr/
 # Logs
 *.log
 
+# Jupyter
+.ipynb_checkpoints/
+
 # Scripts data (local XML exports, sync checkpoints)
 scripts/data/
 scripts/sync_progress.json
